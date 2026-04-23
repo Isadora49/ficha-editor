@@ -1,8 +1,8 @@
-const { PDFDocument, PDFName, PDFString, TextAlignment, rgb } = window.PDFLib || {};
+const { PDFDocument, PDFName, PDFString, TextAlignment } = window.PDFLib || {};
 
 let pdfOriginalBytes = null;
 const labels = [
-    "C1 (Lista Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
+    "C1 (Lsta Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
     "C5 (Nível 2)", "C6 (Dado 2)", "C7 (Total 2)", "C8 (Total 3)",
     "C9 (Nível 3)", "C10 (Dado 3)", "C11 (Nível 4)", "C12 (Dado 4)",
     "C13 (Nível 5)", "C14 (Dado 5)", "C15 (Nível 6)", "C16 (Dado 6)",
@@ -14,7 +14,7 @@ const labels = [
     "C37 (Texto 1)", "C38 (Texto 2)", "C39 (Texto 3)", "C40 (Texto 4)",
     "C41 (Multi-linha 1)", "C42 (Multi-linha 2)", "C43 (Multi-linha 3)",
     "C44 (Texto 5)", "C45 (Texto 6 Central)", "C46 (Texto 7 Central)", "C47 (Texto 8 Central)",
-    "C48 (Imagem 1)", "C49 (Imagem 2)" // Novos campos
+    "C48 (Imagem 1)", "C49 (Imagem 2)"
 ];
 
 const TOTAL_FIELDS = labels.length;
@@ -38,53 +38,48 @@ document.getElementById('uploadPdf').addEventListener('change', async (e) => {
         const page = await pdf.getPage(1);
         const viewport = page.getViewport({ scale: 1.5 });
         const context = canvas.getContext('2d');
+        
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         await page.render({ canvasContext: context, viewport: viewport }).promise;
         
         document.querySelectorAll('.marker').forEach(m => m.remove());
         currentStep = 0;
-        statusEl.innerText = "Clique para posicionar: " + labels[0];
+        statusEl.innerText = "Posicione: " + labels[0];
         btnDownload.disabled = true;
     } catch (err) {
-        alert("Erro ao carregar PDF: " + err.message);
+        alert("Erro ao ler o PDF: " + err.message);
     }
 });
 
 // CLIQUE PARA POSICIONAR
 canvas.addEventListener('click', (e) => {
     if (currentStep >= TOTAL_FIELDS || !pdfOriginalBytes) return;
-
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     const marker = document.createElement('div');
     marker.className = 'marker';
-    if (currentStep >= 47) marker.classList.add('image-type');
     marker.id = `field-${currentStep}`;
     
-    // Configurações de tamanho inicial
-    let w = 60, h = 20;
-    if (currentStep >= 40 && currentStep <= 42) { w = 120; h = 60; }
-    if (currentStep >= 47) { w = 80; h = 80; } // Tamanho para fotos
+    // Tamanhos específicos: Imagens (C48, C49) e Multilinhas
+    const isImg = currentStep >= 47;
+    const isMulti = (currentStep >= 40 && currentStep <= 42);
+    const w = isImg ? 100 : (isMulti ? 120 : 60);
+    const h = isImg ? 100 : (isMulti ? 60 : 20);
 
     marker.style.width = w + 'px';
     marker.style.height = h + 'px';
-    marker.style.left = (x - w / 2) + 'px';
-    marker.style.top = (y - h / 2) + 'px';
+    marker.style.left = (x - w/2) + 'px';
+    marker.style.top = (y - h/2) + 'px';
     marker.innerHTML = `<span class="label-text">${labels[currentStep]}</span>`;
     wrapper.appendChild(marker);
-
     makeDraggable(marker);
+
     currentStep++;
-    
-    if (currentStep === TOTAL_FIELDS) {
-        statusEl.innerText = "Pronto para baixar!";
-        btnDownload.disabled = false;
-    } else {
-        statusEl.innerText = "Posicione: " + labels[currentStep];
-    }
+    statusEl.innerText = (currentStep === TOTAL_FIELDS) ? "Pronto!" : "Posicione: " + labels[currentStep];
+    if (currentStep === TOTAL_FIELDS) btnDownload.disabled = false;
 });
 
 function makeDraggable(el) {
@@ -126,74 +121,87 @@ btnDownload.addEventListener('click', async () => {
             const elT = parseFloat(el.style.top);
             const elW = el.offsetWidth;
             const elH = el.offsetHeight;
-            const pdfX = (elL * width) / canvas.width;
-            const pdfY = height - ((elT * height) / canvas.height) - ((elH * height) / canvas.height);
-            const pdfW = (elW * width) / canvas.width;
-            const pdfH = (elH * height) / canvas.height;
+            const rect = {
+                x: (elL * width) / canvas.width,
+                y: height - ((elT * height) / canvas.height) - ((elH * height) / canvas.height),
+                width: (elW * width) / canvas.width,
+                height: (elH * height) / canvas.height
+            };
 
-            if (i >= 47) {
-                // LÓGICA DE IMAGEM (BOTÃO)
-                f = form.createButton(name);
-                f.addToPage(page, { x: pdfX, y: pdfY, width: pdfW, height: pdfH });
-                f.setLabel("Clique para Foto");
-                
-                // Script para abrir seletor de arquivo (Adobe JS)
-                const js = 'event.target.buttonImportIcon();';
-                f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({
-                    U: { Type: 'Action', S: 'JavaScript', JS: PDFString.of(js) }
-                }));
-            } else if (i === 0) {
+            if (i === 0) {
                 f = form.createDropdown(name);
                 f.addOptions([' ', 'Tank', 'Hibrido', 'Assassino', 'Destruidor', 'Arcano', 'Mentalista', 'Vitalista', 'Invocador', 'Elementalista']);
-                f.addToPage(page, { x: pdfX, y: pdfY, width: pdfW, height: pdfH });
+                f.addToPage(page, rect);
+            } else if (i >= 47) {
+                // CAMPOS DE IMAGEM (BOTÕES)
+                f = form.createButton(name);
+                f.addToPage(page, rect);
+                // No pdf-lib, botões usam setCaption em vez de setLabel
+                f.setCaption("CLIQUE PARA FOTO"); 
+                
+                // Script de importação de imagem
+                const importJS = 'event.target.buttonImportIcon();';
+                const action = pdfDoc.context.obj({
+                    Type: 'Action', S: 'JavaScript', JS: PDFString.of(importJS)
+                });
+                f.acroField.getWidgets().forEach(w => {
+                    w.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ U: action }));
+                });
             } else {
                 f = form.createTextField(name);
-                if (i < 36) f.setText(dadosIndices.includes(i) ? "1d4" : "0");
-                if (i >= 40 && i <= 42) f.enableMultiline();
-                if (dadosIndices.includes(i) || resultadosIndices.includes(i)) f.enableReadOnly();
+                f.addToPage(page, rect);
                 
+                if (i < 36) {
+                    f.setText(dadosIndices.includes(i) ? "1d4" : "0");
+                } else if (i >= 40 && i <= 42) {
+                    f.enableMultiline();
+                }
+
+                if (dadosIndices.includes(i) || resultadosIndices.includes(i)) f.enableReadOnly();
+
                 f.setFontSize(12);
                 f.setAlignment(indicesEsquerda.includes(i) ? TextAlignment.Left : TextAlignment.Center);
-                f.addToPage(page, { x: pdfX, y: pdfY, width: pdfW, height: pdfH, borderWidth: 0 });
             }
         }
 
-        // MOTOR JS (Sua lógica RPG original)
-        const scriptMotor = [
-            'var escolha = this.getField("c1").value;',
-            'var bases = {"Tank":[8,2,2],"Hibrido":[4,2,4],"Assassino":[2,2,8],"Destruidor":[2,4,2],"Arcano":[2,4,2],"Mentalista":[2,4,2],"Vitalista":[2,6,2],"Invocador":[2,6,2],"Elementalista":[2,5,2]};',
-            'var b = bases[escolha] || [0,0,0];',
-            'function getDado(n){ n=Number(n)||0; if(n>=51)return "1d100";if(n>=36)return "1d50";if(n>=26)return "1d20";if(n>=21)return "1d12";if(n>=16)return "1d10";if(n>=11)return "1d8";if(n>=6)return "1d6";return "1d4"; }',
-            'function getD(n){ n=Number(n)||0; return (n>=51)?100:(n>=36)?50:(n>=26)?20:(n>=21)?12:(n>=16)?10:(n>=11)?8:(n>=6)?6:4; }',
-            'var n1 = Number(this.getField("c2").value)||0;',
-            'this.getField("c3").value = getDado(n1);',
-            'this.getField("res").value = (b[0]*n1)+getD(n1);',
-            'this.getField("c8").value = (b[2]*n1)+getD(n1);',
-            'var n2 = Number(this.getField("c5").value)||0;',
-            'this.getField("c6").value = getDado(n2);',
-            'this.getField("res2").value = (b[1]*n2)+getD(n2);',
-            'for(var i=9; i<=35; i+=2){ var nf=this.getField("c"+i), df=this.getField("c"+(i+1)); if(nf&&df) df.value=getDado(nf.value); }'
-        ].join('\n');
+        // MOTOR DE CÁLCULO
+        const scriptMotor = `
+            var escolha = this.getField("c1").value;
+            var bases = {"Tank":[8,2,2],"Hibrido":[4,2,4],"Assassino":[2,2,8],"Destruidor":[2,4,2],"Arcano":[2,4,2],"Mentalista":[2,4,2],"Vitalista":[2,6,2],"Invocador":[2,6,2],"Elementalista":[2,5,2]};
+            var b = bases[escolha] || [0,0,0];
+            function getDado(n){ n=Number(n)||0; return n>=51?"1d100":n>=36?"1d50":n>=26?"1d20":n>=21?"1d12":n>=16?"1d10":n>=11?"1d8":n>=6?"1d6":"1d4"; }
+            function getD(n){ n=Number(n)||0; return (n>=51)?100:(n>=36)?50:(n>=26)?20:(n>=21)?12:(n>=16)?10:(n>=11)?8:(n>=6)?6:4; }
+            var n1 = Number(this.getField("c2").value) || 0;
+            this.getField("c3").value = getDado(n1);
+            this.getField("res").value = (b[0]*n1) + getD(n1);
+            this.getField("c8").value = (b[2]*n1) + getD(n1);
+            var n2 = Number(this.getField("c5").value) || 0;
+            this.getField("c6").value = getDado(n2);
+            this.getField("res2").value = (b[1]*n2) + getD(n2);
+            for(var i=9; i<=35; i+=2){
+                var nf=this.getField("c"+i), df=this.getField("c"+(i+1));
+                if(nf && df){ df.value = getDado(nf.value); }
+            }
+        `;
 
-        const action = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(scriptMotor) });
+        const actionCalc = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(scriptMotor) });
         form.acroForm.dict.set(PDFName.of('NeedAppearances'), pdfDoc.context.obj(true));
-        
-        const triggerNames = ['c1', 'c2', 'c5', 'c9', 'c11', 'c13', 'c15', 'c17', 'c19', 'c21', 'c23', 'c25', 'c27', 'c29', 'c31', 'c33', 'c35'];
-        triggerNames.forEach(name => {
+
+        const triggers = ['c1','c2','c5','c9','c11','c13','c15','c17','c19','c21','c23','c25','c27','c29','c31','c33','c35'];
+        triggers.forEach(name => {
             try {
                 const field = form.getField(name);
-                field.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ K: action, V: action, Bl: action }));
+                field.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ K: actionCalc, V: actionCalc, Bl: actionCalc }));
             } catch(e){}
         });
 
-        const finalPdfBytes = await pdfDoc.save();
-        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const finalBytes = await pdfDoc.save();
+        const blob = new Blob([finalBytes], { type: 'application/pdf' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = "ficha_ajustada.pdf";
         a.click();
     } catch (err) {
-        console.error(err);
-        alert("Erro: " + err.message);
+        alert("Erro técnico: " + err.message);
     }
 });
