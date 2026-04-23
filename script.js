@@ -1,8 +1,10 @@
 const { PDFDocument, PDFName, PDFString, TextAlignment } = window.PDFLib || {};
 
 let pdfOriginalBytes = null;
+
+// 1. LISTA ATUALIZADA: Agora com 49 campos no total (0 até 48)
 const labels = [
-    "C1 (Lsta Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
+    "C1 (Lista Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
     "C5 (Nível 2)", "C6 (Dado 2)", "C7 (Total 2)", "C8 (Total 3)",
     "C9 (Nível 3)", "C10 (Dado 3)", "C11 (Nível 4)", "C12 (Dado 4)",
     "C13 (Nível 5)", "C14 (Dado 5)", "C15 (Nível 6)", "C16 (Dado 6)",
@@ -14,8 +16,7 @@ const labels = [
     "C37 (Texto 1)", "C38 (Texto 2)", "C39 (Texto 3)", "C40 (Texto 4)",
     "C41 (Multi-linha 1)", "C42 (Multi-linha 2)", "C43 (Multi-linha 3)",
     "C44 (Texto 5)", "C45 (Texto 6 Central)", "C46 (Texto 7 Central)", "C47 (Texto 8 Central)",
-    // Novos campos solicitados
-    "C48 (Imagem 1)", "C49 (Imagem 2)"
+    "C48 (Imagem 1)", "C49 (Imagem 2)" // Índices 47 e 48
 ];
 
 const TOTAL_FIELDS = labels.length;
@@ -65,7 +66,7 @@ canvas.addEventListener('click', (e) => {
     marker.className = 'marker';
     marker.id = `field-${currentStep}`;
     
-    // Define tamanhos iniciais baseados no tipo do campo
+    // Ajuste de tamanho visual
     const isMultiLine = (currentStep >= 40 && currentStep <= 42);
     const isImage = (currentStep >= 47);
     const defaultW = isImage ? 80 : (isMultiLine ? 120 : 60);
@@ -83,7 +84,7 @@ canvas.addEventListener('click', (e) => {
 
     currentStep++;
     if (currentStep === TOTAL_FIELDS) {
-        statusEl.innerText = "Tudo pronto!";
+        statusEl.innerText = "Pronto para baixar!";
         btnDownload.disabled = false;
     } else {
         statusEl.innerText = "Posicione: " + labels[currentStep];
@@ -106,7 +107,7 @@ function makeDraggable(el) {
     document.addEventListener('mouseup', () => { isDragging = false; });
 }
 
-// GERAÇÃO DO PDF
+// GERAÇÃO DO PDF FINAL
 btnDownload.addEventListener('click', async () => {
     try {
         const pdfDoc = await PDFDocument.load(pdfOriginalBytes.slice(0));
@@ -114,10 +115,15 @@ btnDownload.addEventListener('click', async () => {
         const page = pdfDoc.getPage(0);
         const { width, height } = page.getSize();
         
+        // Configurações de campo
         const indicesEsquerda = [36, 37, 40, 41, 42, 43];
         const dadosIndices = [2, 5, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35];
         const resultadosIndices = [3, 6, 7]; 
         const imagemIndices = [47, 48];
+
+        // Travas de segurança para as dimensões do canvas
+        const cWidth = canvas.width || 1;
+        const cHeight = canvas.height || 1;
 
         for (let i = 0; i < TOTAL_FIELDS; i++) {
             const el = document.getElementById(`field-${i}`);
@@ -131,15 +137,16 @@ btnDownload.addEventListener('click', async () => {
                 f.addOptions([' ', 'Tank', 'Hibrido', 'Assassino', 'Destruidor', 'Arcano', 'Mentalista', 'Vitalista', 'Invocador', 'Elementalista']);
                 f.select(' ');
             } else if (imagemIndices.includes(i)) {
-                // Cria campo de botão para upload de imagem
                 f = form.createButton(name);
-                const imgJS = 'event.target.buttonImportIcon();';
-                const action = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(imgJS) });
+                const action = pdfDoc.context.obj({ 
+                    Type: 'Action', 
+                    S: 'JavaScript', 
+                    JS: PDFString.of('event.target.buttonImportIcon();') 
+                });
                 f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ U: action }));
             } else {
                 f = form.createTextField(name);
                 if (i < 36) {
-                    // Aqui evitamos o erro NaN garantindo que o texto seja sempre String
                     f.setText(dadosIndices.includes(i) ? "1d4" : "0");
                 } else if (i >= 40 && i <= 42) {
                     f.enableMultiline();
@@ -154,22 +161,29 @@ btnDownload.addEventListener('click', async () => {
                 f.setAlignment(indicesEsquerda.includes(i) ? TextAlignment.Left : TextAlignment.Center);
             }
 
+            // SEGURANÇA CONTRA NaN: Garantimos que os valores sejam números válidos
             const elLeft = parseFloat(el.style.left) || 0;
             const elTop = parseFloat(el.style.top) || 0;
-            const elW = el.offsetWidth || 50;
-            const elH = el.offsetHeight || 20;
+            const elW = parseFloat(el.style.width) || el.offsetWidth || 50;
+            const elH = parseFloat(el.style.height) || el.offsetHeight || 20;
 
+            const pdfX = (elLeft * width) / cWidth;
+            const pdfY = height - ((elTop * height) / cHeight) - ((elH * height) / cHeight);
+            const pdfW = (elW * width) / cWidth;
+            const pdfH = (elH * height) / cHeight;
+
+            // Se por algum motivo o cálculo der errado, usamos 0 para não travar o PDF
             f.addToPage(page, { 
-                x: (elLeft * width) / canvas.width, 
-                y: height - ((elTop * height) / canvas.height) - ((elH * height) / canvas.height), 
-                width: (elW * width) / canvas.width, 
-                height: (elH * height) / canvas.height,
+                x: isNaN(pdfX) ? 0 : pdfX, 
+                y: isNaN(pdfY) ? 0 : pdfY, 
+                width: isNaN(pdfW) ? 50 : pdfW, 
+                height: isNaN(pdfH) ? 20 : pdfH,
                 borderWidth: 0 
             });
         }
 
-        // Script de automação interna do PDF
-        const motorJS = `
+        // MOTOR DE CÁLCULO INTERNO DO PDF
+        const scriptMotor = `
             var escolha = this.getField("c1").value;
             var bases = {"Tank":[8,2,2],"Hibrido":[4,2,4],"Assassino":[2,2,8],"Destruidor":[2,4,2],"Arcano":[2,4,2],"Mentalista":[2,4,2],"Vitalista":[2,6,2],"Invocador":[2,6,2],"Elementalista":[2,5,2]};
             var b = bases[escolha] || [0,0,0];
@@ -193,25 +207,26 @@ btnDownload.addEventListener('click', async () => {
             }
         `;
 
-        const globalAction = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(motorJS) });
+        const action = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(scriptMotor) });
         form.acroForm.dict.set(PDFName.of('NeedAppearances'), pdfDoc.context.obj(true));
 
-        // Aplicar gatilhos nos campos calculáveis
         const triggers = ['c1','c2','c5','c9','c11','c13','c15','c17','c19','c21','c23','c25','c27','c29','c31','c33','c35'];
-        triggers.forEach(t => {
+        triggers.forEach(name => {
             try {
-                const field = form.getField(t);
-                field.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ V: globalAction, K: globalAction, Bl: globalAction }));
+                const field = form.getField(name);
+                field.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ V: action, K: action, Bl: action }));
             } catch(e){}
         });
 
-        const finalBytes = await pdfDoc.save();
-        const blob = new Blob([finalBytes], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = "ficha_atualizada.pdf";
-        link.click();
+        const finalPdfBytes = await pdfDoc.save();
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "ficha_RPG_v2.pdf";
+        a.click();
+
     } catch (err) {
-        alert("Erro ao gerar PDF: " + err.message);
+        console.error(err);
+        alert("Erro técnico ao gerar: " + err.message);
     }
 });
