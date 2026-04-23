@@ -1,8 +1,8 @@
-const { PDFDocument, PDFName, PDFString, TextAlignment } = window.PDFLib || {};
+const { PDFDocument, PDFName, PDFString, TextAlignment, rgb } = window.PDFLib || {};
 
 let pdfOriginalBytes = null;
 const labels = [
-    "C1 (Lista Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
+    "C1 (Lsta Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
     "C5 (Nível 2)", "C6 (Dado 2)", "C7 (Total 2)", "C8 (Total 3)",
     "C9 (Nível 3)", "C10 (Dado 3)", "C11 (Nível 4)", "C12 (Dado 4)",
     "C13 (Nível 5)", "C14 (Dado 5)", "C15 (Nível 6)", "C16 (Dado 6)",
@@ -60,8 +60,8 @@ canvas.addEventListener('click', (e) => {
     marker.className = 'marker';
     marker.id = `field-${currentStep}`;
     const isImg = currentStep >= 47;
-    const w = isImg ? 80 : 60;
-    const h = isImg ? 80 : 20;
+    const w = isImg ? 100 : 60;
+    const h = isImg ? 100 : 20;
     marker.style.width = w + 'px';
     marker.style.height = h + 'px';
     marker.style.left = (x - w / 2) + 'px';
@@ -71,7 +71,7 @@ canvas.addEventListener('click', (e) => {
     makeDraggable(marker);
     currentStep++;
     if (currentStep === TOTAL_FIELDS) {
-        statusEl.innerText = "Pronto!";
+        statusEl.innerText = "Tudo pronto!";
         btnDownload.disabled = false;
     } else {
         statusEl.innerText = "Posicione: " + labels[currentStep];
@@ -113,18 +113,22 @@ btnDownload.addEventListener('click', async () => {
                 const name = (i === 3) ? 'res' : (i === 6) ? 'res2' : `c${i+1}`;
                 let field;
 
-                // 1. Criar o campo conforme o tipo
+                // 1. Criar Campos
                 if (i === 0) {
                     field = form.createDropdown(name);
                     field.addOptions([' ', 'Tank', 'Hibrido', 'Assassino', 'Destruidor', 'Arcano', 'Mentalista', 'Vitalista', 'Invocador', 'Elementalista']);
                 } else if (i >= 47) {
                     field = form.createButton(name);
+                    // IMPORTANTE: Adicionar um rótulo e fundo para o botão aparecer
+                    field.setLabel('Escolher Foto'); 
+                    // No pdf-lib, o botão precisa ser adicionado à página antes de mexer em widgets se quiser cores complexas, 
+                    // mas o básico de label já deve resolver.
                 } else {
                     field = form.createTextField(name);
                     if (i >= 40 && i <= 42) field.enableMultiline();
                 }
 
-                // 2. Coordenadas Sanitizadas (Proteção contra NaN)
+                // 2. Coordenadas
                 const l = parseFloat(el.style.left) || 0;
                 const t = parseFloat(el.style.top) || 0;
                 const w = parseFloat(el.style.width) || 60;
@@ -136,36 +140,38 @@ btnDownload.addEventListener('click', async () => {
                 const fH = (h * height) / cvH;
 
                 field.addToPage(page, { 
-                    x: Number(fX.toFixed(2)) || 0, 
-                    y: Number(fY.toFixed(2)) || 0, 
-                    width: Number(fW.toFixed(2)) || 50, 
-                    height: Number(fH.toFixed(2)) || 20, 
-                    borderWidth: 0 
+                    x: fX, y: fY, width: fW, height: fH, borderWidth: 1
                 });
 
-                // 3. Formatar Texto APENAS se for TextField
+                // 3. Estilização
                 if (i > 0 && i < 47) {
-                    const inicial = (i < 36) ? "0" : "";
-                    field.setText(String(inicial)); // Força ser String
+                    field.setText(String(i < 36 ? "0" : ""));
                     field.setFontSize(11);
                     const isLeft = [36,37,40,41,42,43].includes(i);
                     field.setAlignment(isLeft ? TextAlignment.Left : TextAlignment.Center);
                 }
 
-                // Ação de imagem para botões
+                // 4. Ação de Imagem (Apenas para os botões C48 e C49)
                 if (i >= 47) {
-                    const js = 'event.target.buttonImportIcon();';
-                    field.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ 
-                        U: { Type: 'Action', S: 'JavaScript', JS: PDFString.of(js) } 
-                    }));
+                    const importJS = 'event.target.buttonImportIcon();';
+                    const action = pdfDoc.context.obj({
+                        Type: 'Action',
+                        S: 'JavaScript',
+                        JS: PDFString.of(importJS),
+                    });
+                    // Aplica no evento "Mouse Up" (U) do widget
+                    const widgets = field.acroField.getWidgets();
+                    widgets.forEach((w) => {
+                        w.dict.set(PDFName.of('AA'), pdfDoc.context.obj({
+                            U: action
+                        }));
+                    });
                 }
 
-            } catch (fieldErr) {
-                console.warn(`Erro no campo ${i}:`, fieldErr);
-            }
+            } catch (err) { console.warn(err); }
         }
 
-        // Script de Automação Interna
+        // Script de Cálculo (Mantido)
         const motorJS = `
             var escolha = this.getField("c1").value;
             var bases = {"Tank":[8,2,2],"Hibrido":[4,2,4],"Assassino":[2,2,8],"Destruidor":[2,4,2],"Arcano":[2,4,2],"Mentalista":[2,4,2],"Vitalista":[2,6,2],"Invocador":[2,6,2],"Elementalista":[2,5,2]};
@@ -185,14 +191,13 @@ btnDownload.addEventListener('click', async () => {
             }
         `;
 
-        const action = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(motorJS) });
+        const calcAction = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(motorJS) });
         form.acroForm.dict.set(PDFName.of('NeedAppearances'), pdfDoc.context.obj(true));
-        
         const triggers = ['c1','c2','c5','c9','c11','c13','c15','c17','c19','c21','c23','c25','c27','c29','c31','c33','c35'];
         triggers.forEach(t => {
             try {
                 const f = form.getField(t);
-                f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ V: action, K: action, Bl: action }));
+                f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ V: calcAction, K: calcAction, Bl: calcAction }));
             } catch(e){}
         });
 
@@ -200,11 +205,10 @@ btnDownload.addEventListener('click', async () => {
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "ficha_ajustada.pdf";
+        link.download = "ficha_com_imagem.pdf";
         link.click();
-
     } catch (err) {
         console.error(err);
-        alert("Erro Crítico: " + err.message);
+        alert("Erro: " + err.message);
     }
 });
