@@ -2,7 +2,7 @@ const { PDFDocument, PDFName, PDFString, TextAlignment, rgb } = window.PDFLib ||
 
 let pdfOriginalBytes = null;
 const labels = [
-    "C1 (Lsta Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
+    "C1 (Lista Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
     "C5 (Nível 2)", "C6 (Dado 2)", "C7 (Total 2)", "C8 (Total 3)",
     "C9 (Nível 3)", "C10 (Dado 3)", "C11 (Nível 4)", "C12 (Dado 4)",
     "C13 (Nível 5)", "C14 (Dado 5)", "C15 (Nível 6)", "C16 (Dado 6)",
@@ -14,7 +14,7 @@ const labels = [
     "C37 (Texto 1)", "C38 (Texto 2)", "C39 (Texto 3)", "C40 (Texto 4)",
     "C41 (Multi-linha 1)", "C42 (Multi-linha 2)", "C43 (Multi-linha 3)",
     "C44 (Texto 5)", "C45 (Texto 6 Central)", "C46 (Texto 7 Central)", "C47 (Texto 8 Central)",
-    "C48 (Posição Imagem 1)", "C49 (Posição Imagem 2)"
+    "C48 (Imagem 1)", "C49 (Imagem 2)"
 ];
 
 const TOTAL_FIELDS = labels.length;
@@ -24,26 +24,9 @@ const wrapper = document.getElementById('canvas-wrapper');
 const statusEl = document.getElementById('status');
 const btnDownload = document.getElementById('btnDownload');
 
-// INJETAR CAMPOS DE UPLOAD DE IMAGEM NO HTML VIA JAVASCRIPT
-const uploadContainer = document.createElement('div');
-uploadContainer.style.cssText = "margin: 15px 0; padding: 15px; background: #f0f0f0; border-radius: 8px; border: 1px solid #ccc;";
-uploadContainer.innerHTML = `
-    <h4 style="margin-top:0;">Adicionar Imagens (Opcional)</h4>
-    <label style="display:block; margin-bottom:10px;">
-        <strong>Imagem 1 (C48):</strong> <input type="file" id="imgUpload1" accept="image/png, image/jpeg">
-    </label>
-    <label style="display:block;">
-        <strong>Imagem 2 (C49):</strong> <input type="file" id="imgUpload2" accept="image/png, image/jpeg">
-    </label>
-    <small style="color: #666;">Escolha as imagens aqui. Elas serão carimbadas no PDF quando você baixar.</small>
-`;
-// Coloca a caixa de uploads logo antes do botão de baixar
-btnDownload.parentNode.insertBefore(uploadContainer, btnDownload);
-
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-// CARREGAR PDF
+// CARREGAMENTO
 document.getElementById('uploadPdf').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -65,7 +48,7 @@ document.getElementById('uploadPdf').addEventListener('change', async (e) => {
     } catch (err) { alert("Erro: " + err.message); }
 });
 
-// POSICIONAR MARCADORES
+// POSICIONAMENTO
 canvas.addEventListener('click', (e) => {
     if (currentStep >= TOTAL_FIELDS || !pdfOriginalBytes) return;
     const rect = canvas.getBoundingClientRect();
@@ -74,12 +57,9 @@ canvas.addEventListener('click', (e) => {
     const marker = document.createElement('div');
     marker.className = 'marker';
     marker.id = `field-${currentStep}`;
-    
-    // Imagens recebem marcador maior
     const isImg = currentStep >= 47;
     const w = isImg ? 100 : 60; 
     const h = isImg ? 100 : 20;
-
     marker.style.width = w + 'px';
     marker.style.height = h + 'px';
     marker.style.left = (x - w / 2) + 'px';
@@ -88,7 +68,7 @@ canvas.addEventListener('click', (e) => {
     wrapper.appendChild(marker);
     makeDraggable(marker);
     currentStep++;
-    statusEl.innerText = currentStep === TOTAL_FIELDS ? "Tudo posicionado! Anexe as fotos (se quiser) e clique em Baixar." : "Posicione: " + labels[currentStep];
+    statusEl.innerText = currentStep === TOTAL_FIELDS ? "Pronto!" : "Posicione: " + labels[currentStep];
     if (currentStep === TOTAL_FIELDS) btnDownload.disabled = false;
 });
 
@@ -107,23 +87,7 @@ function makeDraggable(el) {
     document.addEventListener('mouseup', () => isDragging = false);
 }
 
-// FUNÇÃO PARA LER IMAGEM E EMBUTIR NO PDF
-async function embedSelectedImage(fileInputId, pdfDoc) {
-    const fileInput = document.getElementById(fileInputId);
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) return null;
-    
-    const file = fileInput.files[0];
-    try {
-        const bytes = await file.arrayBuffer();
-        if (file.type === 'image/png') return await pdfDoc.embedPng(bytes);
-        if (file.type === 'image/jpeg' || file.type === 'image/jpg') return await pdfDoc.embedJpg(bytes);
-    } catch(e) {
-        console.warn("Erro ao ler imagem: ", e);
-    }
-    return null;
-}
-
-// GERAR PDF E EMBUTIR AS IMAGENS E CAMPOS
+// GERAÇÃO
 btnDownload.addEventListener('click', async () => {
     try {
         const pdfDoc = await PDFDocument.load(pdfOriginalBytes.slice(0));
@@ -133,57 +97,47 @@ btnDownload.addEventListener('click', async () => {
         const cvW = canvas.width;
         const cvH = canvas.height;
 
-        // Processar as imagens selecionadas no navegador
-        const img1 = await embedSelectedImage('imgUpload1', pdfDoc);
-        const img2 = await embedSelectedImage('imgUpload2', pdfDoc);
-
         for (let i = 0; i < TOTAL_FIELDS; i++) {
             const el = document.getElementById(`field-${i}`);
             if (!el) continue;
 
             const name = (i === 3) ? 'res' : (i === 6) ? 'res2' : `c${i+1}`;
-            const l = parseFloat(el.style.left);
-            const t = parseFloat(el.style.top);
-            const w = parseFloat(el.style.width);
-            const h = parseFloat(el.style.height);
-            
-            const fX = (l * width) / cvW;
-            const fY = height - ((t * height) / cvH) - ((h * height) / cvH);
-            const fW = (w * width) / cvW;
-            const fH = (h * height) / cvH;
+            const fX = (parseFloat(el.style.left) * width) / cvW;
+            const fY = height - ((parseFloat(el.style.top) * height) / cvH) - ((parseFloat(el.style.height) * height) / cvH);
+            const fW = (parseFloat(el.style.width) * width) / cvW;
+            const fH = (parseFloat(el.style.height) * height) / cvH;
 
-            // SE FOR IMAGEM 1 (C48)
-            if (i === 47) {
-                if (img1) {
-                    page.drawImage(img1, { x: fX, y: fY, width: fW, height: fH });
-                } else {
-                    // Desenha um quadrado vazio caso não tenha enviado foto
-                    page.drawRectangle({ x: fX, y: fY, width: fW, height: fH, borderColor: rgb(0.5,0.5,0.5), borderWidth: 1 });
-                }
-            } 
-            // SE FOR IMAGEM 2 (C49)
-            else if (i === 48) {
-                if (img2) {
-                    page.drawImage(img2, { x: fX, y: fY, width: fW, height: fH });
-                } else {
-                    page.drawRectangle({ x: fX, y: fY, width: fW, height: fH, borderColor: rgb(0.5,0.5,0.5), borderWidth: 1 });
-                }
-            } 
-            // SE FOREM OS OUTROS CAMPOS NORMAIS
-            else {
-                if (i === 0) {
-                    const drop = form.createDropdown(name);
-                    drop.addOptions([' ', 'Tank', 'Hibrido', 'Assassino', 'Destruidor', 'Arcano', 'Mentalista', 'Vitalista', 'Invocador', 'Elementalista']);
-                    drop.addToPage(page, { x: fX, y: fY, width: fW, height: fH });
-                } else {
-                    const txt = form.createTextField(name);
-                    if (i >= 40 && i <= 42) txt.enableMultiline();
-                    txt.addToPage(page, { x: fX, y: fY, width: fW, height: fH });
-                    txt.setText(String(i < 36 ? "0" : ""));
-                    txt.setFontSize(11);
-                    const isLeft = [36,37,40,41,42,43].includes(i);
-                    txt.setAlignment(isLeft ? TextAlignment.Left : TextAlignment.Center);
-                }
+            if (i >= 47) {
+                // CAMPO DE IMAGEM HACKEADO PARA NAVEGADOR
+                const btn = form.createButton(name);
+                btn.addToPage(page, { x: fX, y: fY, width: fW, height: fH });
+                btn.setLabel('CLIQUE AQUI PARA IMAGEM');
+                
+                // JavaScript que tenta forçar o seletor de arquivos
+                const js = 'event.target.buttonImportIcon();';
+                
+                // Aplicando a ação em múltiplos gatilhos para aumentar chance de sucesso
+                const widgets = btn.acroField.getWidgets();
+                widgets.forEach(w => {
+                    const aa = pdfDoc.context.obj({
+                        U: { Type: 'Action', S: 'JavaScript', JS: PDFString.of(js) }, // Mouse Up
+                        E: { Type: 'Action', S: 'JavaScript', JS: PDFString.of(js) }  // Mouse Enter
+                    });
+                    w.dict.set(PDFName.of('AA'), aa);
+                    w.dict.set(PDFName.of('MK'), pdfDoc.context.obj({ BG: [0.9, 0.9, 0.9], BC: [0, 0, 0] }));
+                });
+            } else if (i === 0) {
+                const drop = form.createDropdown(name);
+                drop.addOptions([' ', 'Tank', 'Hibrido', 'Assassino', 'Destruidor', 'Arcano', 'Mentalista', 'Vitalista', 'Invocador', 'Elementalista']);
+                drop.addToPage(page, { x: fX, y: fY, width: fW, height: fH });
+            } else {
+                const txt = form.createTextField(name);
+                if (i >= 40 && i <= 42) txt.enableMultiline();
+                txt.addToPage(page, { x: fX, y: fY, width: fW, height: fH });
+                txt.setText(String(i < 36 ? "0" : ""));
+                txt.setFontSize(11);
+                const isLeft = [36,37,40,41,42,43].includes(i);
+                txt.setAlignment(isLeft ? TextAlignment.Left : TextAlignment.Center);
             }
         }
 
@@ -207,25 +161,23 @@ btnDownload.addEventListener('click', async () => {
             }
         `;
 
-        const action = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(motorJS) });
+        const calcAction = pdfDoc.context.obj({ Type: 'Action', S: 'JavaScript', JS: PDFString.of(motorJS) });
         form.acroForm.dict.set(PDFName.of('NeedAppearances'), pdfDoc.context.obj(true));
         
         const triggers = ['c1','c2','c5','c9','c11','c13','c15','c17','c19','c21','c23','c25','c27','c29','c31','c33','c35'];
         triggers.forEach(t => {
             try {
                 const f = form.getField(t);
-                f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ V: action, K: action, Bl: action }));
+                f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ V: calcAction, K: calcAction, Bl: calcAction }));
             } catch(e){}
         });
 
+        form.updateAppearances();
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "ficha_final_com_imagem.pdf";
+        link.download = "ficha_interativa.pdf";
         link.click();
-
-    } catch (err) { 
-        alert("Erro na Geração: " + err.message); 
-    }
+    } catch (err) { alert("Erro: " + err.message); }
 });
