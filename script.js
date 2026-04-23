@@ -1,9 +1,9 @@
-// Adicionamos TextAlignment à desestruturação
-const { PDFDocument, PDFName, PDFString, TextAlignment } = window.PDFLib || {};
+// Adicionamos 'rgb' para caso queira dar uma cor de fundo ao botão futuramente
+const { PDFDocument, PDFName, PDFString, TextAlignment, rgb } = window.PDFLib || {};
 
 let pdfOriginalBytes = null;
 const labels = [
-    "C1 (Lsta Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
+    "C1 (Lista Base)", "C2 (Nível 1)", "C3 (Dado 1)", "C4 (Total 1)", 
     "C5 (Nível 2)", "C6 (Dado 2)", "C7 (Total 2)", "C8 (Total 3)",
     "C9 (Nível 3)", "C10 (Dado 3)", "C11 (Nível 4)", "C12 (Dado 4)",
     "C13 (Nível 5)", "C14 (Dado 5)", "C15 (Nível 6)", "C16 (Dado 6)",
@@ -15,8 +15,9 @@ const labels = [
     "C37 (Texto 1)", "C38 (Texto 2)", "C39 (Texto 3)", "C40 (Texto 4)",
     "C41 (Multi-linha 1)", "C42 (Multi-linha 2)", "C43 (Multi-linha 3)",
     "C44 (Texto 5)", 
-    // --- 3 NOVOS CAMPOS ADICIONADOS AQUI ---
-    "C45 (Texto 6 Central)", "C46 (Texto 7 Central)", "C47 (Texto 8 Central)"
+    "C45 (Texto 6 Central)", "C46 (Texto 7 Central)", "C47 (Texto 8 Central)",
+    // --- 2 NOVOS CAMPOS DE IMAGEM ADICIONADOS AQUI ---
+    "C48 (Imagem 1)", "C49 (Imagem 2)"
 ];
 
 const TOTAL_FIELDS = labels.length;
@@ -67,8 +68,11 @@ canvas.addEventListener('click', (e) => {
     marker.id = `field-${currentStep}`;
     
     const isMultiLine = (currentStep >= 40 && currentStep <= 42);
-    const defaultW = isMultiLine ? 120 : 60;
-    const defaultH = isMultiLine ? 60 : 20;
+    const isImage = (currentStep >= 47); // Índices 47 e 48 são imagens
+    
+    // Deixamos o marcador da imagem maior por padrão para facilitar
+    const defaultW = isImage ? 100 : (isMultiLine ? 120 : 60);
+    const defaultH = isImage ? 100 : (isMultiLine ? 60 : 20);
 
     marker.style.width = defaultW + 'px';
     marker.style.height = defaultH + 'px';
@@ -117,9 +121,9 @@ btnDownload.addEventListener('click', async () => {
         const { width, height } = page.getSize();
         
         const indicesEsquerda = [36, 37, 40, 41, 42, 43];
-        // Indices que representam os campos de DADOS (C3, C6, C10...) e RESULTADOS (C4, C7, C8)
         const dadosIndices = [2, 5, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35];
-        const resultadosIndices = [3, 6, 7]; // res, res2 e c8
+        const resultadosIndices = [3, 6, 7]; 
+        const imagemIndices = [47, 48]; // Nossos novos campos de imagem
         
         const opcoesClasses = [' ', 'Tank', 'Hibrido', 'Assassino', 'Destruidor', 'Arcano', 'Mentalista', 'Vitalista', 'Invocador', 'Elementalista'];
         const cWidth = canvas.width;
@@ -133,10 +137,26 @@ btnDownload.addEventListener('click', async () => {
             let f;
 
             if (i === 0) {
+                // Dropdown
                 f = form.createDropdown(name);
                 f.addOptions(opcoesClasses);
                 f.select(' ');
+                
+            } else if (imagemIndices.includes(i)) {
+                // --- CRIAÇÃO DO CAMPO DE IMAGEM (BOTÃO) ---
+                f = form.createButton(name);
+                
+                // Injetamos o JavaScript no botão para abrir a janela de "Upload" do Adobe Acrobat
+                const imgAction = pdfDoc.context.obj({
+                    Type: 'Action',
+                    S: 'JavaScript',
+                    JS: PDFString.of('event.target.buttonImportIcon();')
+                });
+                // Vincula a ação de clique (Mouse Up = U)
+                f.acroField.dict.set(PDFName.of('AA'), pdfDoc.context.obj({ U: imgAction }));
+                
             } else {
+                // TextField
                 f = form.createTextField(name);
                 if (i < 36) {
                     f.setText(dadosIndices.includes(i) ? "1d4" : "0");
@@ -144,17 +164,12 @@ btnDownload.addEventListener('click', async () => {
                     f.enableMultiline();
                 }
 
-                // --- TRAVANDO OS CAMPOS AUTOMÁTICOS ---
-                // Se for um campo de Dado ou um campo de Resultado (Total), habilitamos o ReadOnly
                 if (dadosIndices.includes(i) || resultadosIndices.includes(i)) {
                     f.enableReadOnly();
                 }
 
                 f.acroField.dict.set(PDFName.of('DA'), PDFString.of('/Helvetica 12 Tf 0 g'));
                 f.setFontSize(12);
-                
-                // Os novos campos (índices 44, 45, 46) não estão em indicesEsquerda,
-                // portanto, receberão TextAlignment.Center naturalmente aqui:
                 f.setAlignment(indicesEsquerda.includes(i) ? TextAlignment.Left : TextAlignment.Center);
             }
 
@@ -168,7 +183,7 @@ btnDownload.addEventListener('click', async () => {
                 y: height - ((elTop * height) / cHeight) - ((elH * height) / cHeight), 
                 width: (elW * width) / cWidth, 
                 height: (elH * height) / cHeight,
-                borderWidth: 0 
+                borderWidth: 0 // Mantemos 0 para ficar transparente na ficha
             });
         }
 
