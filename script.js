@@ -1,69 +1,75 @@
-const pdfUpload = document.getElementById('pdf-upload');
-const imageUpload = document.getElementById('image-upload');
-const imageField = document.getElementById('image-field');
-const previewImg = document.getElementById('preview-img');
-const downloadBtn = document.getElementById('download-btn');
+const pdfInput = document.getElementById('pdfInput');
+const imageInput = document.getElementById('imageInput');
+const processBtn = document.getElementById('processBtn');
+const preview = document.getElementById('pdfPreview');
 
-let pdfDocBytes = null;
-let imageBytes = null;
-
-// 1. Ler o PDF e mostrar (simplificado para exibição)
-pdfUpload.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    pdfDocBytes = await file.arrayBuffer();
-    alert("PDF Carregado! Agora escolha uma imagem.");
-});
-
-// 2. Ler a imagem e mostrar o campo flutuante
-imageUpload.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        previewImg.src = event.target.result;
-        imageField.classList.remove('hidden');
-        downloadBtn.disabled = false;
-    };
-    reader.readAsDataURL(file);
-    imageBytes = await file.arrayBuffer();
-});
-
-// 3. Tornar o campo arrastável (Lógica Simples)
-let isDragging = false;
-imageField.onmousedown = (e) => { isDragging = true; };
-document.onmousemove = (e) => {
-    if (isDragging) {
-        const rect = document.getElementById('viewer').getBoundingClientRect();
-        imageField.style.left = (e.clientX - rect.left - 75) + 'px';
-        imageField.style.top = (e.clientY - rect.top - 20) + 'px';
-    }
-};
-document.onmouseup = () => { isDragging = false; };
-
-// 4. Mesclar e Baixar
-downloadBtn.addEventListener('click', async () => {
-    const { PDFDocument } = PDFLib;
-    const pdfDoc = await PDFDocument.load(pdfDocBytes);
-    const pages = pdfDoc.getPages();
-    const firstPage = pages[0];
-
-    // Converter imagem
-    const embedImg = await pdfDoc.embedPng(imageBytes); // Suporta PNG/JPG
-    
-    // Pegar posição do campo na tela e converter para escala do PDF
-    // Nota: Em um projeto real, você calcularia a proporção Canvas vs PDF.
-    firstPage.drawImage(embedImg, {
-        x: 50, // Posição fixa para este exemplo
-        y: 50,
-        width: 150,
-        height: 100,
+// Função para ler arquivo como ArrayBuffer
+const readFile = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
     });
+};
 
-    const modifiedPdfBytes = await pdfDoc.save();
-    
-    // Download
-    const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'pdf-modificado.pdf';
-    link.click();
+// Mostrar preview básico quando subir o arquivo
+pdfInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const blobUrl = URL.createObjectURL(file);
+        preview.src = blobUrl;
+    }
+});
+
+processBtn.addEventListener('click', async () => {
+    if (!pdfInput.files[0] || !imageInput.files[0]) {
+        alert("Por favor, selecione o PDF e a Imagem!");
+        return;
+    }
+
+    try {
+        // 1. Carregar os dados
+        const pdfBytes = await readFile(pdfInput.files[0]);
+        const imageBytes = await readFile(imageInput.files[0]);
+
+        // 2. Carregar o documento PDF e a Imagem
+        const { PDFDocument } = PDFLib;
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        
+        // Suporta PNG ou JPEG
+        const imgType = imageInput.files[0].type;
+        let embeddedImage;
+        if (imgType === 'image/png') {
+            embeddedImage = await pdfDoc.embedPng(imageBytes);
+        } else {
+            embeddedImage = await pdfDoc.embedJpg(imageBytes);
+        }
+
+        // 3. Pegar a primeira página e as dimensões da imagem
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        const { width, height } = embeddedImage.scale(0.5); // Escala 50%
+
+        // 4. Desenhar a imagem no PDF
+        // Aqui você define as coordenadas (x, y)
+        firstPage.drawImage(embeddedImage, {
+            x: 50,
+            y: 50,
+            width: width,
+            height: height,
+        });
+
+        // 5. Salvar e Gerar Download
+        const modifiedPdfBytes = await pdfDoc.save();
+        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = "pdf_modificado.pdf";
+        link.click();
+
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao processar PDF: " + err.message);
+    }
 });
