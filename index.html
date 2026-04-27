@@ -2,151 +2,141 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Editor PDF Profissional - GitHub 2026</title>
+    <title>Editor PDF Profissional - 2026</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        #toolbar { background: #1f1f1f; width: 100%; padding: 15px; display: flex; justify-content: center; gap: 15px; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid #333; }
-        #editor-container { position: relative; margin: 30px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; line-height: 0; }
+        body { font-family: sans-serif; background: #111; color: #eee; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #header { background: #222; width: 100%; padding: 15px; display: flex; justify-content: center; gap: 15px; border-bottom: 2px solid #444; position: sticky; top: 0; z-index: 999; }
+        #canvas-wrapper { position: relative; margin: 20px; background: white; box-shadow: 0 0 30px rgba(0,0,0,0.8); display: none; }
         canvas { display: block; }
-        .draggable-field {
-            position: absolute; width: 150px; height: 100px;
-            background: rgba(33, 150, 243, 0.4); border: 2px solid #2196f3;
-            color: #fff; display: flex; align-items: center; justify-content: center;
-            cursor: move; touch-action: none; user-select: none; font-weight: bold; 
-            font-size: 11px; text-align: center; box-sizing: border-box; z-index: 500;
-            text-shadow: 1px 1px 2px black;
+        .box-field {
+            position: absolute; width: 160px; height: 100px;
+            background: rgba(0, 123, 255, 0.4); border: 2px solid #007bff;
+            color: white; display: flex; align-items: center; justify-content: center;
+            cursor: move; touch-action: none; font-size: 10px; font-weight: bold;
+            box-sizing: border-box; text-shadow: 1px 1px 2px black;
         }
-        button { padding: 12px 24px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
-        .btn-upload { background: #e0e0e0; color: #121212; }
-        .btn-add { background: #2196f3; color: white; display: none; }
-        .btn-save { background: #4caf50; color: white; display: none; }
-        button:hover { opacity: 0.9; }
-        #msg { margin-top: 10px; color: #aaa; font-size: 13px; }
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-up { background: #fff; color: #000; }
+        .btn-add { background: #007bff; color: white; display: none; }
+        .btn-save { background: #28a745; color: white; display: none; }
     </style>
 </head>
 <body>
 
-<div id="toolbar">
-    <input type="file" id="pdf-input" accept=".pdf" style="display:none">
-    <button class="btn-upload" onclick="document.getElementById('pdf-input').click()">1. Carregar PDF</button>
-    <button id="add-btn" class="btn-add">2. Inserir Campos</button>
-    <button id="save-btn" class="btn-save">3. Baixar PDF Modificado</button>
+<div id="header">
+    <input type="file" id="input-file" accept=".pdf" style="display:none">
+    <button class="btn-up" onclick="document.getElementById('input-file').click()">1. Carregar PDF</button>
+    <button id="add-btn" class="btn-add">2. Criar Campos</button>
+    <button id="save-btn" class="btn-save">3. Baixar PDF Editável</button>
 </div>
-<div id="msg">Aguardando arquivo...</div>
 
-<div id="editor-container">
-    <canvas id="pdf-render"></canvas>
+<div id="canvas-wrapper">
+    <canvas id="pdf-canvas"></canvas>
 </div>
 
 <script>
-    const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    const pdfjs = window['pdfjs-dist/build/pdf'];
+    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    let rawPdfBytes = null; // Cópia limpa dos bytes para o download
+    let pdfData = null;
     let renderScale = 1.5;
 
-    // --- 1. CARREGAMENTO E VISUALIZAÇÃO ---
-    document.getElementById('pdf-input').addEventListener('change', async (e) => {
+    // --- CARREGAR PDF ---
+    document.getElementById('input-file').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        pdfData = await file.arrayBuffer();
 
-        document.getElementById('msg').innerText = "Processando visualização...";
-        
-        const arrayBuffer = await file.arrayBuffer();
-        rawPdfBytes = new Uint8Array(arrayBuffer); // Clonando os bytes para garantir que não se percam
-
-        const loadingTask = pdfjsLib.getDocument({ data: rawPdfBytes });
+        const loadingTask = pdfjs.getDocument({ data: pdfData });
         const pdf = await loadingTask.promise;
         const page = await pdf.getPage(1);
-        
+
         const viewport = page.getViewport({ scale: renderScale });
-        const canvas = document.getElementById('pdf-render');
+        const canvas = document.getElementById('pdf-canvas');
         const context = canvas.getContext('2d');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
         await page.render({ canvasContext: context, viewport: viewport }).promise;
-        
-        document.getElementById('editor-container').style.display = 'block';
+
+        document.getElementById('canvas-wrapper').style.display = 'block';
         document.getElementById('add-btn').style.display = 'inline-block';
-        document.getElementById('msg').innerText = "PDF Carregado. Agora adicione os campos.";
     });
 
-    // --- 2. ADIÇÃO DOS CAMPOS ---
+    // --- CRIAR CAMPOS ---
     document.getElementById('add-btn').addEventListener('click', () => {
-        spawnField('CAMPO IMAGEM 1', 50, 50);
-        spawnField('CAMPO IMAGEM 2', 250, 50);
+        spawn(80, 80, "IMAGEM 1");
+        spawn(280, 80, "IMAGEM 2");
         document.getElementById('add-btn').style.display = 'none';
         document.getElementById('save-btn').style.display = 'inline-block';
-        document.getElementById('msg').innerText = "Posicione os campos e clique em baixar.";
     });
 
-    function spawnField(text, x, y) {
-        const container = document.getElementById('editor-container');
+    function spawn(x, y, label) {
         const div = document.createElement('div');
-        div.className = 'draggable-field';
-        div.innerText = text;
+        div.className = 'box-field';
+        div.innerText = label;
         div.style.left = x + 'px';
         div.style.top = y + 'px';
-        container.appendChild(div);
+        document.getElementById('canvas-wrapper').appendChild(div);
 
         interact(div).draggable({
-            listeners: { move(event) {
-                let t = event.target;
-                let nx = (parseFloat(t.getAttribute('data-x')) || 0) + event.dx;
-                let ny = (parseFloat(t.getAttribute('data-y')) || 0) + event.dy;
+            listeners: { move(e) {
+                let t = e.target;
+                let nx = (parseFloat(t.getAttribute('data-x')) || 0) + e.dx;
+                let ny = (parseFloat(t.getAttribute('data-y')) || 0) + e.dy;
                 t.style.transform = `translate(${nx}px, ${ny}px)`;
                 t.setAttribute('data-x', nx);
                 t.setAttribute('data-y', ny);
             }}
         }).resizable({
             edges: { left: true, right: true, bottom: true, top: true },
-            listeners: { move(event) {
-                let t = event.target;
-                let nx = (parseFloat(t.getAttribute('data-x')) || 0) + event.deltaRect.left;
-                let ny = (parseFloat(t.getAttribute('data-y')) || 0) + event.deltaRect.top;
-                t.style.width = event.rect.width + 'px';
-                t.style.height = event.rect.height + 'px';
-                t.style.transform = `translate(${nx}px, ${ny}px)`;
+            listeners: { move(e) {
+                let t = e.target;
+                let nx = (parseFloat(t.getAttribute('data-x')) || 0) + e.deltaRect.left;
+                let ny = (parseFloat(t.getAttribute('data-y')) || 0) + e.deltaRect.top;
+                Object.assign(t.style, {
+                    width: `${e.rect.width}px`,
+                    height: `${e.rect.height}px`,
+                    transform: `translate(${nx}px, ${ny}px)`
+                });
                 t.setAttribute('data-x', nx);
                 t.setAttribute('data-y', ny);
             }}
         });
     }
 
-    // --- 3. DOWNLOAD (CORRIGIDO) ---
+    // --- SALVAR PDF (CORREÇÃO CRÍTICA) ---
     document.getElementById('save-btn').addEventListener('click', async () => {
         try {
-            document.getElementById('msg').innerText = "Preparando download...";
+            const { PDFDocument } = PDFLib;
             
-            // Usando a biblioteca PDF-Lib de forma segura
-            const pdfDoc = await PDFLib.PDFDocument.load(rawPdfBytes);
-            const form = pdfDoc.getForm();
-            const page = pdfDoc.getPage(0);
+            // CARREGA O PDF IGNORANDO ERROS DE CRIPTOGRAFIA LEVES
+            const doc = await PDFDocument.load(pdfData, { ignoreEncryption: true });
+            const form = doc.getForm();
+            const page = doc.getPage(0);
             const { width, height } = page.getSize();
-            const canvas = document.getElementById('pdf-render');
+            const canvas = document.getElementById('pdf-canvas');
 
-            const factorX = width / canvas.width;
-            const factorY = height / canvas.height;
+            const rx = width / canvas.width;
+            const ry = height / canvas.height;
 
-            const fields = document.querySelectorAll('.draggable-field');
-            
-            fields.forEach((el, idx) => {
-                const dx = parseFloat(el.getAttribute('data-x')) || 0;
-                const dy = parseFloat(el.getAttribute('data-y')) || 0;
-                const left = parseFloat(el.style.left);
-                const top = parseFloat(el.style.top);
+            const boxes = document.querySelectorAll('.box-field');
+            boxes.forEach((box, i) => {
+                const dx = parseFloat(box.getAttribute('data-x')) || 0;
+                const dy = parseFloat(box.getAttribute('data-y')) || 0;
+                const L = parseFloat(box.style.left);
+                const T = parseFloat(box.style.top);
 
-                const finalX = (left + dx) * factorX;
-                const finalY = height - ((top + dy + el.offsetHeight) * factorY);
-                const finalW = el.offsetWidth * factorX;
-                const finalH = el.offsetHeight * factorY;
+                const finalX = (L + dx) * rx;
+                const finalY = height - ((T + dy + box.offsetHeight) * ry);
+                const finalW = box.offsetWidth * rx;
+                const finalH = box.offsetHeight * ry;
 
-                // Criando o campo de imagem técnico (PushButton)
-                const btn = form.createButton(`img_field_${idx}_${Math.random().toString(36).substr(2, 5)}`);
+                // Cria o campo de botão (que funciona como campo de imagem)
+                const btn = form.createButton(`img_field_${i}_${Math.random()}`);
                 btn.addToPage(page, { 
                     x: finalX, 
                     y: finalY, 
@@ -155,29 +145,25 @@
                 });
             });
 
-            const pdfBytesSaved = await pdfDoc.save();
-            const blob = new Blob([pdfBytesSaved], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
+            // GERA OS BYTES
+            const pdfBytes = await doc.save();
             
-            // Gatilho de download compatível com 2026
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "meu_pdf_editavel.pdf";
-            document.body.appendChild(a);
-            a.click();
-            
-            setTimeout(() => {
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                document.getElementById('msg').innerText = "Sucesso! Verifique seus downloads.";
-            }, 100);
+            // DOWNLOAD FORÇADO
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = "meu_pdf_editavel.pdf";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
 
+            alert("PDF gerado com sucesso!");
         } catch (err) {
-            console.error("Erro detalhado:", err);
-            document.getElementById('msg').innerText = "Erro ao gerar PDF. Tente outro arquivo.";
-            alert("Houve um problema técnico ao processar este PDF específico. Verifique se ele não possui restrições de edição.");
+            console.error("ERRO DETALHADO:", err);
+            alert("Não foi possível processar este PDF. Motivo: " + err.message);
         }
     });
 </script>
+
 </body>
 </html>
