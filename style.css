@@ -1,0 +1,18 @@
+body { font-family: sans-serif; background: #f4f4f9; display: flex; justify-content: center; padding: 20px; }
+.container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 800px; }
+.controls { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+#viewer { position: relative; border: 2px dashed #ccc; min-height: 400px; overflow: hidden; display: flex; justify-content: center; }
+#pdf-canvas { max-width: 100%; height: auto; }
+
+/* O Campo de Imagem */
+#image-field {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    width: 150px;
+    cursor: move;
+    border: 2px solid #007bff;
+    background: rgba(0, 123, 255, 0.1);
+}
+#image-field img { width: 100%; pointer-events: none; }
+.hidden { display: none !important; }
