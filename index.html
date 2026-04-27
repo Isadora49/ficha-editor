@@ -2,209 +2,171 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de PDF Editável (Estrito)</title>
-    
+    <title>Editor PDF - Correção Definitiva</title>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-    
     <style>
-        body { font-family: Arial, sans-serif; background: #222; color: #fff; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        #toolbar { background: #111; width: 100%; padding: 15px; display: flex; justify-content: center; gap: 15px; position: sticky; top: 0; z-index: 1000; border-bottom: 2px solid #444; }
-        
-        /* Container ajustado dinamicamente para ter o exato tamanho do canvas */
-        #editor-container { position: relative; margin: 30px; display: none; background: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        body { font-family: sans-serif; background: #111; color: #eee; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #toolbar { background: #222; width: 100%; padding: 15px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #444; }
+        #editor-container { position: relative; margin: 20px; background: white; display: none; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
         canvas { display: block; }
-        
-        .image-field {
+        .draggable-field {
             position: absolute; width: 150px; height: 100px;
-            background: rgba(255, 87, 34, 0.4); border: 2px solid #ff5722;
-            color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center;
-            cursor: grab; touch-action: none; user-select: none; box-sizing: border-box; z-index: 10;
+            background: rgba(0, 123, 255, 0.4); border: 2px solid #007bff;
+            color: white; display: flex; align-items: center; justify-content: center;
+            cursor: move; touch-action: none; font-weight: bold; font-size: 12px; z-index: 10;
         }
-        .image-field:active { cursor: grabbing; }
-        
-        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; font-size: 14px; }
-        .btn-gray { background: #eee; color: #333; }
-        .btn-orange { background: #ff5722; color: white; display: none; }
-        .btn-green { background: #4caf50; color: white; display: none; }
-        button:hover { filter: brightness(1.1); }
-        
-        #status-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; color: #4caf50; text-align: center; padding: 10px; font-family: monospace; font-size: 14px; font-weight: bold; z-index: 1000; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-add { background: #007bff; color: white; display: none; }
+        .btn-save { background: #28a745; color: white; display: none; }
+        #status { position: fixed; bottom: 0; width: 100%; background: #000; padding: 5px; text-align: center; color: #28a745; font-family: monospace; }
     </style>
 </head>
 <body>
 
 <div id="toolbar">
-    <input type="file" id="pdf-input" accept=".pdf" style="display:none">
-    <button class="btn-gray" onclick="document.getElementById('pdf-input').click()">1. Carregar PDF</button>
-    <button id="add-btn" class="btn-orange">2. Adicionar Campos</button>
-    <button id="save-btn" class="btn-green">3. Gerar e Baixar</button>
+    <input type="file" id="pdf-input" accept=".pdf">
+    <button id="add-btn" class="btn-add">Adicionar Campos</button>
+    <button id="save-btn" class="btn-save">Baixar PDF</button>
 </div>
 
 <div id="editor-container">
     <canvas id="pdf-render"></canvas>
-    </div>
+</div>
 
-<div id="status-bar">Aguardando arquivo PDF...</div>
+<div id="status">Selecione um PDF para começar.</div>
 
 <script>
-    // Configuração do Leitor de PDF
     const pdfjsLib = window['pdfjs-dist/build/pdf'];
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     let originalPdfBytes = null;
-    let pdfScale = 1.5;
+    let pdfDocGlobal = null;
 
-    function logStatus(msg, isError = false) {
-        const bar = document.getElementById('status-bar');
-        bar.innerText = msg;
-        bar.style.color = isError ? '#ff5252' : '#4caf50';
-    }
-
-    // 1. Carregar o PDF e dimensionar o container corretamente
+    // 1. CARREGAR PDF
     document.getElementById('pdf-input').addEventListener('change', async (e) => {
-        try {
-            const file = e.target.files[0];
-            if (!file) return;
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        document.getElementById('status').innerText = "Processando...";
+        originalPdfBytes = await file.arrayBuffer();
+        
+        const loadingTask = pdfjsLib.getDocument({ data: originalPdfBytes });
+        pdfDocGlobal = await loadingTask.promise;
+        const page = await pdfDocGlobal.getPage(1);
+        
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.getElementById('pdf-render');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
 
-            logStatus("Lendo arquivo...");
-            originalPdfBytes = await file.arrayBuffer();
-            
-            const loadingTask = pdfjsLib.getDocument({ data: originalPdfBytes });
-            const pdf = await loadingTask.promise;
-            const page = await pdf.getPage(1);
-            
-            const viewport = page.getViewport({ scale: pdfScale });
-            const canvas = document.getElementById('pdf-render');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-
-            // Ajusta o container para ter exatamente o mesmo tamanho do canvas
-            const container = document.getElementById('editor-container');
-            container.style.width = viewport.width + 'px';
-            container.style.height = viewport.height + 'px';
-
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-            
-            container.style.display = 'block';
-            document.getElementById('add-btn').style.display = 'inline-block';
-            logStatus("PDF carregado. Clique em 'Adicionar Campos'.");
-        } catch (err) {
-            logStatus("Erro na leitura: " + err.message, true);
-        }
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        
+        document.getElementById('editor-container').style.display = 'block';
+        document.getElementById('add-btn').style.display = 'inline-block';
+        document.getElementById('status').innerText = "PDF Carregado.";
     });
 
-    // 2. Adicionar Campos com matemática direta (Sem CSS Transforms)
+    // 2. CRIAR CAMPOS (DRAG & RESIZE)
     document.getElementById('add-btn').addEventListener('click', () => {
-        createStrictField('CAMPO 1', 50, 50);
-        createStrictField('CAMPO 2', 250, 50);
+        spawnField("CAMPO_1", 50, 50);
+        spawnField("CAMPO_2", 250, 50);
         document.getElementById('add-btn').style.display = 'none';
         document.getElementById('save-btn').style.display = 'inline-block';
-        logStatus("Arraste as bordas dos quadrados para redimensionar.");
     });
 
-    function createStrictField(label, x, y) {
-        const container = document.getElementById('editor-container');
+    function spawnField(id, x, y) {
         const el = document.createElement('div');
-        el.className = 'image-field';
-        el.innerText = label;
-        
-        // Usando posições absolutas diretas, fáceis de calcular
+        el.className = 'draggable-field';
+        el.id = id;
+        el.innerText = id.replace('_', ' ');
         el.style.left = x + 'px';
         el.style.top = y + 'px';
-        container.appendChild(el);
+        document.getElementById('editor-container').appendChild(el);
 
         interact(el).draggable({
-            listeners: {
-                move(event) {
-                    const target = event.target;
-                    const newX = (parseFloat(target.style.left) || 0) + event.dx;
-                    const newY = (parseFloat(target.style.top) || 0) + event.dy;
-                    target.style.left = newX + 'px';
-                    target.style.top = newY + 'px';
-                }
-            }
+            listeners: { move(event) {
+                const t = event.target;
+                const x = (parseFloat(t.getAttribute('data-x')) || 0) + event.dx;
+                const y = (parseFloat(t.getAttribute('data-y')) || 0) + event.dy;
+                t.style.transform = `translate(${x}px, ${y}px)`;
+                t.setAttribute('data-x', x);
+                t.setAttribute('data-y', y);
+            }}
         }).resizable({
             edges: { left: true, right: true, bottom: true, top: true },
-            listeners: {
-                move(event) {
-                    const target = event.target;
-                    const newX = (parseFloat(target.style.left) || 0) + event.deltaRect.left;
-                    const newY = (parseFloat(target.style.top) || 0) + event.deltaRect.top;
-                    
-                    target.style.width = event.rect.width + 'px';
-                    target.style.height = event.rect.height + 'px';
-                    target.style.left = newX + 'px';
-                    target.style.top = newY + 'px';
-                }
-            }
+            listeners: { move(event) {
+                const t = event.target;
+                let x = (parseFloat(t.getAttribute('data-x')) || 0);
+                let y = (parseFloat(t.getAttribute('data-y')) || 0);
+                t.style.width = event.rect.width + 'px';
+                t.style.height = event.rect.height + 'px';
+                x += event.deltaRect.left;
+                y += event.deltaRect.top;
+                t.style.transform = `translate(${x}px, ${y}px)`;
+                t.setAttribute('data-x', x);
+                t.setAttribute('data-y', y);
+            }}
         });
     }
 
-    // 3. Salvamento Blindado
+    // 3. SALVAR (O CONSERTO DO NaN)
     document.getElementById('save-btn').addEventListener('click', async () => {
         try {
-            logStatus("Gerando arquivo final... Aguarde.");
-            
+            document.getElementById('status').innerText = "Gerando PDF seguro...";
             const { PDFDocument } = PDFLib;
-            const pdfDoc = await PDFDocument.load(originalPdfBytes, { ignoreEncryption: true });
+            const pdfDoc = await PDFDocument.load(originalPdfBytes);
             const form = pdfDoc.getForm();
             const page = pdfDoc.getPage(0);
-            
-            const { width: pdfWidth, height: pdfHeight } = page.getSize();
+            const { width, height } = page.getSize();
             const canvas = document.getElementById('pdf-render');
 
-            // Fatores de escala (Tela vs PDF Real)
-            const scaleX = pdfWidth / canvas.width;
-            const scaleY = pdfHeight / canvas.height;
+            const scaleX = width / canvas.width;
+            const scaleY = height / canvas.height;
 
-            const fields = document.querySelectorAll('.image-field');
+            const fields = document.querySelectorAll('.draggable-field');
             
             fields.forEach((div, index) => {
-                // Pegando valores puramente numéricos limpos do estilo
-                const visualLeft = parseFloat(div.style.left) || 0;
-                const visualTop = parseFloat(div.style.top) || 0;
-                const visualWidth = parseFloat(div.style.width) || 150;
-                const visualHeight = parseFloat(div.style.height) || 100;
+                const rect = div.getBoundingClientRect();
+                const containerRect = document.getElementById('editor-container').getBoundingClientRect();
 
-                // Converte para coordenadas do PDF e arredonda para evitar dízimas ou NaN
-                const finalW = Math.max(10, Math.round(visualWidth * scaleX));
-                const finalH = Math.max(10, Math.round(visualHeight * scaleY));
-                
-                const finalX = Math.max(0, Math.round(visualLeft * scaleX));
-                // O eixo Y do PDF é invertido (começa de baixo)
-                const finalY = Math.max(0, Math.round(pdfHeight - ((visualTop + visualHeight) * scaleY)));
+                // Cálculo manual robusto
+                const rawX = (rect.left - containerRect.left) * scaleX;
+                const rawY = height - ((rect.top - containerRect.top + rect.height) * scaleY);
+                const rawW = rect.width * scaleX;
+                const rawH = rect.height * scaleY;
 
-                const btn = form.createButton(`campo_imagem_${Date.now()}_${index}`);
-                btn.addToPage(page, { 
-                    x: finalX, 
-                    y: finalY, 
-                    width: finalW, 
-                    height: finalH 
+                // FILTRO ANTI-NaN: Se não for número, usa valor padrão
+                const finalX = isNaN(rawX) ? 10 : Number(rawX);
+                const finalY = isNaN(rawY) ? 10 : Number(rawY);
+                const finalW = isNaN(rawW) || rawW <= 0 ? 100 : Number(rawW);
+                const finalH = isNaN(rawH) || rawH <= 0 ? 50 : Number(rawH);
+
+                // NOME DO CAMPO: Deve ser string pura
+                const fieldName = String("imagem_" + index + "_" + Date.now());
+
+                const button = form.createButton(fieldName);
+                button.addToPage(page, {
+                    x: finalX,
+                    y: finalY,
+                    width: finalW,
+                    height: finalH
                 });
             });
 
-            const finalBytes = await pdfDoc.save();
-            
-            // Força o download
-            const blob = new Blob([finalBytes], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "meu_pdf_com_campos.pdf";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            logStatus("✅ PDF Baixado com Sucesso!");
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = "pdf_editavel.pdf";
+            link.click();
+            document.getElementById('status').innerText = "Sucesso!";
         } catch (err) {
             console.error(err);
-            // Mostrará o erro exato na barra preta inferior se falhar novamente
-            logStatus("ERRO AO SALVAR: " + err.message, true);
+            document.getElementById('status').innerText = "Erro: " + err.message;
         }
     });
 </script>
