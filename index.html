@@ -2,52 +2,120 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Gerador de PDF Editável</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Campos PDF</title>
     <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
-    <script src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f4f4f9; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        button { background: #28a745; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #2c3e50; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #toolbar { background: #34495e; width: 100%; padding: 15px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        #pdf-container { position: relative; margin: 20px; border: 2px solid #ecf0f1; background: white; line-height: 0; }
+        canvas { max-width: 100%; }
+        .draggable-field {
+            position: absolute; width: 120px; height: 60px; background: rgba(52, 152, 219, 0.5);
+            border: 2px dashed #2980b9; color: white; display: flex; align-items: center;
+            justify-content: center; cursor: move; touch-action: none; font-size: 12px; font-weight: bold; text-align: center;
+        }
+        button { background: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2ecc71; }
+        input[type="file"] { background: #ecf0f1; color: #333; padding: 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Adicionar Campos de Imagem ao PDF</h2>
-    <input type="file" id="pdfInput" accept=".pdf"><br><br>
-    <button onclick="createFields()">Transformar e Baixar PDF</button>
+<div id="toolbar">
+    <input type="file" id="upload-pdf" accept="application/pdf">
+    <button id="add-fields-btn" style="display:none;">Adicionar Campos de Imagem</button>
+    <button id="download-pdf" style="display:none; background: #2980b9;">Gerar e Baixar PDF</button>
 </div>
 
+<div id="pdf-container">
+    <canvas id="pdf-render"></canvas>
+    </div>
+
 <script>
-    async function createFields() {
-        const fileInput = document.getElementById('pdfInput');
-        if (fileInput.files.length === 0) return alert("Selecione um PDF primeiro!");
+    const { PDFDocument } = PDFLib;
+    let pdfDoc = null;
+    let pdfBytes = null;
+    let scale = 1.5;
 
-        const existingPdfBytes = await fileInput.files[0].arrayBuffer();
-        const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
-        const form = pdfDoc.getForm();
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
+    // Inicializar PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // Criando o Campo de Imagem 1
-        const imageField1 = form.createButton('campo_imagem_1');
-        imageField1.addToPage(firstPage, { x: 50, y: 100, width: 100, height: 100 });
+    document.getElementById('upload-pdf').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        pdfBytes = await file.arrayBuffer();
         
-        // Criando o Campo de Imagem 2
-        const imageField2 = form.createButton('campo_imagem_2');
-        imageField2.addToPage(firstPage, { x: 200, y: 100, width: 100, height: 100 });
+        // Renderizar primeira página
+        const loadingTask = pdfjsLib.getDocument({data: pdfBytes});
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        
+        const viewport = page.getViewport({scale: scale});
+        const canvas = document.getElementById('pdf-render');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
 
-        // Nota: No padrão PDF, campos de imagem são tecnicamente botões 
-        // configurados para exibir uma imagem após a seleção.
+        await page.render({canvasContext: context, viewport: viewport}).promise;
+        
+        document.getElementById('add-fields-btn').style.display = 'inline-block';
+        document.getElementById('pdf-container').style.width = viewport.width + 'px';
+    });
 
-        const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'pdf_editavel.pdf';
-        link.click();
+    document.getElementById('add-fields-btn').addEventListener('click', () => {
+        createField('Campo Imagem 1', 'img_1', 50, 50);
+        createField('Campo Imagem 2', 'img_2', 200, 50);
+        document.getElementById('add-fields-btn').style.display = 'none';
+        document.getElementById('download-pdf').style.display = 'inline-block';
+    });
+
+    function createField(label, id, x, y) {
+        const div = document.createElement('div');
+        div.className = 'draggable-field';
+        div.id = id;
+        div.style.transform = `translate(${x}px, ${y}px)`;
+        div.setAttribute('data-x', x);
+        div.setAttribute('data-y', y);
+        div.innerHTML = label;
+        document.getElementById('pdf-container').appendChild(div);
+
+        // Tornar arrastável e redimensionável
+        interact(div).draggable({
+            listeners: { move(event) {
+                let x = (parseFloat(event.target.getAttribute('data-x')) || 0) + event.dx;
+                let y = (parseFloat(event.target.getAttribute('data-y')) || 0) + event.dy;
+                event.target.style.transform = `translate(${x}px, ${y}px)`;
+                event.target.setAttribute('data-x', x);
+                event.target.setAttribute('data-y', y);
+            }}
+        }).resizable({
+            edges: { right: true, bottom: true, left: true, top: true },
+            listeners: { move(event) {
+                let x = (parseFloat(event.target.getAttribute('data-x')) || 0) + event.deltaRect.left;
+                let y = (parseFloat(event.target.getAttribute('data-y')) || 0) + event.deltaRect.top;
+                Object.assign(event.target.style, {
+                    width: `${event.rect.width}px`,
+                    height: `${event.rect.height}px`,
+                    transform: `translate(${x}px, ${y}px)`
+                });
+                event.target.setAttribute('data-x', x);
+                event.target.setAttribute('data-y', y);
+            }}
+        });
     }
-</script>
-</body>
-</html>
+
+    document.getElementById('download-pdf').addEventListener('click', async () => {
+        const finalPdf = await PDFDocument.load(pdfBytes);
+        const form = finalPdf.getForm();
+        const page = finalPdf.getPage(0);
+        const { width, height } = page.getSize();
+        const canvas = document.getElementById('pdf-render');
+
+        // Cálculo de escala entre o que aparece na tela e o PDF real
+        const scaleX = width / canvas.width;
+        const scaleY = height / canvas.height;
+
+        const
