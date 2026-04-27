@@ -2,37 +2,31 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Editor PDF - Versão Ultra Estável</title>
-    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-    <style>
-        body { font-family: sans-serif; background: #111; color: #eee; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        #menu { background: #222; width: 100%; padding: 15px; display: flex; justify-content: center; gap: 10px; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid #333; }
-        #pdf-wrapper { position: relative; margin: 20px; background: white; display: none; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        canvas { display: block; }
-        .campo-imagem {
-            position: absolute; width: 150px; height: 100px;
-            background: rgba(0, 123, 255, 0.3); border: 2px solid #007bff;
-            color: black; font-weight: bold; display: flex; align-items: center; justify-content: center;
-            cursor: move; touch-action: none; user-select: none; z-index: 10; font-size: 12px;
-        }
-        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
-        .btn-principal { background: #007bff; color: white; }
-        .btn-sucesso { background: #28a745; color: white; display: none; }
-        #status { position: fixed; bottom: 10px; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 20px; font-size: 12px; color: #28a745; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de PDF Estático</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 
-<div id="menu">
-    <input type="file" id="input-pdf" accept=".pdf">
-    <button id="btn-campos" class="btn-principal" style="display:none">1. Adicionar 2 Campos</button>
-    <button id="btn-download" class="btn-sucesso">2. Baixar PDF</button>
-</div>
+    <div class="container">
+        <h1>Assinador de PDF</h1>
+        
+        <div class="controls">
+            <input type="file" id="pdf-upload" accept=".pdf">
+            <input type="file" id="image-upload" accept="image/*">
+            <button id="download-btn" disabled>Baixar PDF Modificado</button>
+        </div>
 
-<div id="pdf-wrapper">
-    <canvas id="pdf-canvas"></canvas>
-</div>
+        <div id="viewer">
+            <canvas id="pdf-canvas"></canvas>
+            <div id="image-field" class="hidden">
+                <img id="preview-img" src="" alt="Sua imagem">
+                <p>Arraste-me</p>
+            </div>
+        </div>
+    </div>
 
-<div id="
+    <script src="script.js"></script>
+</body>
+</html>
