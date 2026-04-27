@@ -2,31 +2,31 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor de PDF Estático</title>
+    <title>PDF Image Inserter</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
-
     <div class="container">
-        <h1>Assinador de PDF</h1>
+        <h1>Editor de PDF Editável</h1>
         
-        <div class="controls">
-            <input type="file" id="pdf-upload" accept=".pdf">
-            <input type="file" id="image-upload" accept="image/*">
-            <button id="download-btn" disabled>Baixar PDF Modificado</button>
+        <div class="upload-section">
+            <label>1. Escolha o PDF:</label>
+            <input type="file" id="pdfInput" accept=".pdf">
+            
+            <label>2. Escolha a Imagem (PNG/JPG):</label>
+            <input type="file" id="imageInput" accept="image/*">
         </div>
 
-        <div id="viewer">
-            <canvas id="pdf-canvas"></canvas>
-            <div id="image-field" class="hidden">
-                <img id="preview-img" src="" alt="Sua imagem">
-                <p>Arraste-me</p>
-            </div>
+        <div class="controls">
+            <button id="processBtn">Processar e Baixar PDF</button>
+        </div>
+
+        <div id="previewArea">
+            <p>O PDF aparecerá aqui após o upload.</p>
+            <iframe id="pdfPreview"></iframe>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
