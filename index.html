@@ -1,56 +1,53 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Editor de Fichas RPG v2.0</title>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <title>Gerador de PDF Editável</title>
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background: #1a1a1a; color: white; overflow: hidden; }
-        #toolbar { padding: 15px; background: #222; border-bottom: 2px solid #e74c3c; display: flex; gap: 15px; align-items: center; z-index: 1000; }
-        #viewer-container { flex: 1; overflow: auto; position: relative; background: #333; display: flex; justify-content: center; }
-        #canvas-wrapper { position: relative; margin: 20px; }
-        canvas { border: 1px solid #000; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: crosshair; }
-        button { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #555; cursor: not-allowed; }
-        
-        /* Marcador Interativo */
-        .marker {
-            position: absolute;
-            background: rgba(231, 76, 60, 0.6);
-            border: 2px solid #e74c3c;
-            color: white;
-            font-size: 10px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            cursor: move; /* Indica que pode arrastar */
-            resize: both; /* Permite redimensionar pelo canto inferior direito */
-            overflow: hidden;
-            min-width: 30px;
-            min-height: 15px;
-            user-select: none;
-            z-index: 500;
-        }
-        .marker .label-text { pointer-events: none; padding: 2px; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f4f4f9; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-<div id="toolbar">
-    <input type="file" id="uploadPdf" accept="application/pdf">
-    <div id="status">Aguardando PDF...</div>
-    <button id="btnDownload" disabled>BAIXAR PDF CONFIGURADO</button>
+<div class="container">
+    <h2>Adicionar Campos de Imagem ao PDF</h2>
+    <input type="file" id="pdfInput" accept=".pdf"><br><br>
+    <button onclick="createFields()">Transformar e Baixar PDF</button>
 </div>
 
-<div id="viewer-container">
-    <div id="canvas-wrapper">
-        <canvas id="pdf-canvas"></canvas>
-    </div>
-</div>
+<script>
+    async function createFields() {
+        const fileInput = document.getElementById('pdfInput');
+        if (fileInput.files.length === 0) return alert("Selecione um PDF primeiro!");
 
-<script src="script.js"></script>
+        const existingPdfBytes = await fileInput.files[0].arrayBuffer();
+        const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
+        const form = pdfDoc.getForm();
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+
+        // Criando o Campo de Imagem 1
+        const imageField1 = form.createButton('campo_imagem_1');
+        imageField1.addToPage(firstPage, { x: 50, y: 100, width: 100, height: 100 });
+        
+        // Criando o Campo de Imagem 2
+        const imageField2 = form.createButton('campo_imagem_2');
+        imageField2.addToPage(firstPage, { x: 200, y: 100, width: 100, height: 100 });
+
+        // Nota: No padrão PDF, campos de imagem são tecnicamente botões 
+        // configurados para exibir uma imagem após a seleção.
+
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'pdf_editavel.pdf';
+        link.click();
+    }
+</script>
 </body>
 </html>
