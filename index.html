@@ -3,114 +3,205 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor PDF Profissional 2026</title>
+    <title>Editor de PDF - GitHub Version</title>
     
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.10.11/interact.min.js"></script>
     
     <style>
-        :root { --primary: #00dc82; --bg: #0b0e14; --surface: #1e293b; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        :root { --accent: #2563eb; --error: #ef4444; --success: #22c55e; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         
-        #header { background: var(--surface); width: 100%; padding: 20px; display: flex; justify-content: center; gap: 15px; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #334155; }
+        #nav { background: #1e293b; width: 100%; padding: 1rem; display: flex; justify-content: center; gap: 1rem; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #334155; }
         
-        #editor-wrapper { position: relative; margin: 40px; background: white; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); display: none; }
+        #editor-viewport { position: relative; margin: 2rem; background: #fff; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); display: none; }
         canvas { display: block; }
         
-        .field-box {
+        .image-zone {
             position: absolute; width: 150px; height: 100px;
-            background: rgba(0, 220, 130, 0.3); border: 2px solid var(--primary);
-            color: #000; font-weight: bold; display: flex; align-items: center; justify-content: center;
-            cursor: move; touch-action: none; user-select: none; z-index: 10; font-size: 12px;
+            background: rgba(37, 99, 235, 0.2); border: 2px dashed var(--accent);
+            color: #1e293b; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            cursor: move; touch-action: none; user-select: none; z-index: 50; font-size: 11px; text-align: center;
         }
         
-        button { padding: 12px 24px; cursor: pointer; border: none; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
-        .btn-load { background: #f8fafc; color: #0f172a; }
-        .btn-add { background: var(--primary); color: #0b0e14; display: none; }
-        .btn-save { background: #38bdf8; color: #0b0e14; display: none; }
-        button:hover { transform: translateY(-2px); opacity: 0.9; }
+        button { padding: 0.6rem 1.2rem; cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: 0.2s; }
+        .btn-up { background: #f1f5f9; color: #0f172a; }
+        .btn-add { background: var(--accent); color: white; display: none; }
+        .btn-save { background: var(--success); color: white; display: none; }
+        button:hover { opacity: 0.9; transform: scale(1.02); }
         
-        #log { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #000; padding: 10px 20px; border-radius: 20px; font-size: 13px; color: var(--primary); border: 1px solid var(--primary); z-index: 2000; }
+        #msg-console { position: fixed; bottom: 1rem; padding: 0.5rem 1rem; background: #000; border-radius: 20px; font-size: 12px; border: 1px solid #334155; }
     </style>
 </head>
 <body>
 
-<div id="header">
-    <input type="file" id="pdf-file" accept=".pdf" style="display:none">
-    <button class="btn-load" onclick="document.getElementById('pdf-file').click()">1. Escolher PDF</button>
-    <button id="add-btn" class="btn-add">2. Criar Campos</button>
-    <button id="save-btn" class="btn-save">3. Baixar PDF Editável</button>
+<div id="nav">
+    <input type="file" id="upload-pdf" accept=".pdf" style="display:none">
+    <button class="btn-up" onclick="document.getElementById('upload-pdf').click()">1. Carregar PDF</button>
+    <button id="btn-spawn" class="btn-add">2. Adicionar Campos</button>
+    <button id="btn-export" class="btn-save">3. Baixar PDF Editável</button>
 </div>
 
-<div id="editor-wrapper">
+<div id="editor-viewport">
     <canvas id="pdf-canvas"></canvas>
 </div>
 
-<div id="log">Aguardando arquivo...</div>
+<div id="msg-console">Aguardando arquivo...</div>
 
 <script>
-    const { PDFDocument } = PDFLib;
-    const pdfjs = window['pdfjs-dist/build/pdf'];
-    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    // Configuração de segurança do Worker
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let pdfRawBytes = null;
-    let renderScale = 1.5;
+    let rawPdfData = null;
+    const viewScale = 1.5;
 
-    function status(msg, err = false) {
-        const l = document.getElementById('log');
-        l.innerText = msg;
-        l.style.color = err ? '#ff4d4d' : '#00dc82';
-        l.style.borderColor = err ? '#ff4d4d' : '#00dc82';
+    function print(text, isError = false) {
+        const c = document.getElementById('msg-console');
+        c.innerText = text;
+        c.style.color = isError ? '#ef4444' : '#22c55e';
     }
 
-    // 1. CARREGAR PDF
-    document.getElementById('pdf-file').addEventListener('change', async (e) => {
+    // 1. LEITURA E RENDERIZAÇÃO
+    document.getElementById('upload-pdf').addEventListener('change', async (e) => {
         try {
             const file = e.target.files[0];
             if (!file) return;
 
-            status("Processando PDF...");
-            pdfRawBytes = await file.arrayBuffer();
-            
-            // Clonamos o buffer para o PDF.js não "detachar" o original
-            const displayBytes = pdfRawBytes.slice(0);
-            const loading = pdfjs.getDocument({ data: displayBytes });
-            const pdf = await loading.promise;
+            print("Processando visualização...");
+            const buffer = await file.arrayBuffer();
+            rawPdfData = buffer; // Salva o original para o export
+
+            // Criamos uma cópia para o renderizador não "travar" o buffer original
+            const renderData = buffer.slice(0);
+            const loadingTask = pdfjsLib.getDocument({ data: renderData });
+            const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
             
-            const viewport = page.getViewport({ scale: renderScale });
+            const viewport = page.getViewport({ scale: viewScale });
             const canvas = document.getElementById('pdf-canvas');
-            const ctx = canvas.getContext('2d');
+            const context = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
 
-            const wrapper = document.getElementById('editor-wrapper');
-            wrapper.style.width = viewport.width + 'px';
-            wrapper.style.height = viewport.height + 'px';
+            const container = document.getElementById('editor-viewport');
+            container.style.width = viewport.width + 'px';
+            container.style.height = viewport.height + 'px';
 
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
             
-            wrapper.style.display = 'block';
-            document.getElementById('add-btn').style.display = 'inline-block';
-            status("PDF carregado com sucesso!");
-        } catch (e) {
-            status("Erro ao ler PDF: " + e.message, true);
+            container.style.display = 'block';
+            document.getElementById('btn-spawn').style.display = 'inline-block';
+            print("PDF Carregado! Prossiga para o passo 2.");
+        } catch (err) {
+            console.error(err);
+            print("Erro ao exibir PDF. Tente outro arquivo.", true);
         }
     });
 
-    // 2. CRIAR CAMPOS (DRAG & RESIZE)
-    document.getElementById('add-btn').addEventListener('click', () => {
-        spawn('CAMPO IMAGEM 1', 40, 40);
-        spawn('CAMPO IMAGEM 2', 200, 40);
-        document.getElementById('add-btn').style.display = 'none';
-        document.getElementById('save-btn').style.display = 'inline-block';
-        status("Arraste e ajuste os campos.");
+    // 2. CRIAÇÃO DOS CAMPOS
+    document.getElementById('btn-spawn').addEventListener('click', () => {
+        addField("FOTO 1", 50, 50);
+        addField("FOTO 2", 250, 50);
+        document.getElementById('btn-spawn').style.display = 'none';
+        document.getElementById('btn-export').style.display = 'inline-block';
+        print("Arraste e redimensione os campos azuis.");
     });
 
-    function spawn(txt, x, y) {
-        const div = document.createElement('div');
-        div.className = 'field-box';
-        div.innerText = txt;
-        div.style.left = x + 'px';
-        div.style.top = y
+    function addField(label, x, y) {
+        const viewer = document.getElementById('editor-viewport');
+        const box = document.createElement('div');
+        box.className = 'image-zone';
+        box.innerText = label;
+        box.style.left = x + 'px';
+        box.style.top = y + 'px';
+        viewer.appendChild(box);
+
+        interact(box).draggable({
+            listeners: { move(event) {
+                const t = event.target;
+                const nx = (parseFloat(t.style.left) || 0) + event.dx;
+                const ny = (parseFloat(t.style.top) || 0) + event.dy;
+                t.style.left = nx + 'px';
+                t.style.top = ny + 'px';
+            }}
+        }).resizable({
+            edges: { left: true, right: true, bottom: true, top: true },
+            listeners: { move(event) {
+                const t = event.target;
+                t.style.width = event.rect.width + 'px';
+                t.style.height = event.rect.height + 'px';
+                t.style.left = (parseFloat(t.style.left) || 0) + event.deltaRect.left + 'px';
+                t.style.top = (parseFloat(t.style.top) || 0) + event.deltaRect.top + 'px';
+            }}
+        });
+    }
+
+    // 3. EXPORTAÇÃO (BLINDADA CONTRA NaN)
+    document.getElementById('btn-export').addEventListener('click', async () => {
+        try {
+            print("Gerando arquivo... Não feche a página.");
+            
+            // Forçamos a clonagem do buffer original para evitar o erro de Detached ArrayBuffer
+            const exportBuffer = rawPdfData.slice(0);
+            const pdfDoc = await PDFLib.PDFDocument.load(exportBuffer);
+            const form = pdfDoc.getForm();
+            const page = pdfDoc.getPage(0);
+            const { width, height } = page.getSize();
+            const canvas = document.getElementById('pdf-canvas');
+
+            // Fator de conversão entre a tela e o PDF real
+            const ratioX = width / canvas.width;
+            const ratioY = height / canvas.height;
+
+            const boxes = document.querySelectorAll('.image-zone');
+            
+            boxes.forEach((box, i) => {
+                // Captura valores puros e protege contra NaN
+                const vL = parseFloat(box.style.left) || 0;
+                const vT = parseFloat(box.style.top) || 0;
+                const vW = parseFloat(box.style.width) || 150;
+                const vH = parseFloat(box.style.height) || 100;
+
+                // Converte para pontos de PDF (Numérico Estrito)
+                const pX = Math.round(vL * ratioX);
+                const pW = Math.round(vW * ratioX);
+                const pH = Math.round(vH * ratioY);
+                // Inversão do eixo Y (O PDF começa de baixo)
+                const pY = Math.round(height - ((vT * ratioY) + pH));
+
+                // Nome do campo precisa ser string simples
+                const fieldName = "img_field_" + i + "_" + Math.floor(Math.random() * 1000);
+                const button = form.createButton(fieldName);
+                
+                // Validação final: se não for número, vira 0
+                button.addToPage(page, { 
+                    x: isNaN(pX) ? 0 : pX, 
+                    y: isNaN(pY) ? 0 : pY, 
+                    width: isNaN(pW) ? 50 : pW, 
+                    height: isNaN(pH) ? 50 : pH 
+                });
+            });
+
+            const finalPdf = await pdfDoc.save();
+            const blob = new Blob([finalPdf], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = "projeto_editavel.pdf";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            print("✅ PDF gerado com sucesso!");
+        } catch (err) {
+            console.error(err);
+            print("Erro ao salvar: " + err.message, true);
+        }
+    });
+</script>
+
+</body>
+</html>
