@@ -2,29 +2,34 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>PDF Image Inserter</title>
+    <title>Criador de Campo de Imagem PDF</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Editor de PDF Editável</h1>
+        <h1>Inserir Campo de Imagem em PDF</h1>
         
         <div class="upload-section">
-            <label>1. Escolha o PDF:</label>
+            <label>1. Escolha o PDF base:</label>
             <input type="file" id="pdfInput" accept=".pdf">
-            
-            <label>2. Escolha a Imagem (Apenas PNG ou JPG):</label>
-            <input type="file" id="imageInput" accept="image/png, image/jpeg">
+        </div>
+
+        <div class="dimensions-section">
+            <label>Largura (px): 
+                <input type="number" id="fieldWidth" value="250">
+            </label>
+            <label>Altura (px): 
+                <input type="number" id="fieldHeight" value="250">
+            </label>
         </div>
 
         <div class="controls">
-            <button id="processBtn">Processar e Baixar PDF</button>
+            <button id="processBtn">Criar Campo e Baixar PDF</button>
         </div>
 
-        <div id="previewArea">
-            <p>Visualização do Documento:</p>
-            <iframe id="pdfPreview"></iframe>
+        <div class="instructions">
+            <p><strong>Atenção:</strong> Após baixar, abra o PDF no <strong>Adobe Acrobat Reader</strong> ou <strong>Foxit</strong>. Os visualizadores de PDF de navegadores (Chrome, Edge) geralmente bloqueiam a inserção de imagens por segurança.</p>
         </div>
     </div>
     <script src="script.js"></script>
