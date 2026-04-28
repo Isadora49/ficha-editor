@@ -3,31 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de PDF Editável</title>
+    <title>PDF Editável Pro 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Gerador de PDF com Campo de Imagem</h1>
+        <h1>Editor de PDF: Campo de Foto</h1>
         
         <div class="upload-section">
-            <div class="input-group">
-                <label>Selecione o PDF Base:</label>
-                <input type="file" id="pdfInput" accept=".pdf">
-            </div>
+            <label><strong>1. Carregue seu PDF:</strong></label><br><br>
+            <input type="file" id="pdfInput" accept=".pdf">
         </div>
 
+        <p class="instruction">Arraste e ajuste o tamanho do quadro azul onde a foto deve ficar.</p>
+
         <div class="controls">
-            <button id="processBtn">Baixar PDF Editável</button>
-            <p class="instruction">Posicione o quadrado azul onde deseja o campo de imagem.</p>
+            <button id="processBtn">Gerar PDF para Preencher</button>
         </div>
 
         <div id="canvas-wrapper">
             <iframe id="pdfPreview"></iframe>
             <div id="image-field" class="resize-drag">
-                <div class="image-content">Clique aqui (no PDF) para inserir foto</div>
+                <div class="image-content">ÁREA DA FOTO<br>(Editável no PDF)</div>
             </div>
         </div>
     </div>
