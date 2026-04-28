@@ -6,6 +6,7 @@
     <title>PDF Interactive Editor 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -13,28 +14,28 @@
         
         <div class="upload-section">
             <div class="field">
-                <label>1. Escolha o PDF:</label>
+                <label>1. Arquivo PDF:</label>
                 <input type="file" id="pdfInput" accept=".pdf">
             </div>
             <div class="field">
-                <label>2. Escolha a Imagem:</label>
+                <label>2. Imagem para Inserir:</label>
                 <input type="file" id="imageInput" accept="image/*">
             </div>
         </div>
 
         <div class="controls">
             <button id="processBtn">Gerar e Baixar PDF Final</button>
-            <p class="hint">Arraste a imagem e use as bordas para redimensionar.</p>
+            <p class="instruction">Arraste a imagem e redimensione as bordas com o mouse.</p>
         </div>
 
-        <div id="editorWrapper">
-            <div id="pdfCanvasContainer">
-                <canvas id="pdfRenderCanvas"></canvas>
-                <div id="resizableImage" class="draggable">
-                    <div class="resizer sw"></div>
-                    <div class="resizer se"></div>
-                </div>
+        <div id="editor-container" class="editor-container">
+            <canvas id="pdfCanvas"></canvas>
+            <div id="resizable-image" class="draggable-resizable">
+                <img id="imgPreview" src="" style="display: none; width: 100%; height: 100%; pointer-events: none;">
+                <span class="placeholder-text">Aguardando imagem...</span>
             </div>
         </div>
     </div>
-    <script src="script.
+    <script src="script.js"></script>
+</body>
+</html>
