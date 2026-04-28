@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Image Inserter</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -12,10 +13,10 @@
         
         <div class="upload-section">
             <label>1. Escolha o PDF:</label>
-            <input type="file" id="pdfInput" accept=".pdf">
+            <input type="file" id="pdfInput" accept="application/pdf">
             
-            <label>2. Escolha a Imagem (PNG/JPG):</label>
-            <input type="file" id="imageInput" accept="image/*">
+            <label>2. Escolha a Imagem (Somente PNG ou JPG):</label>
+            <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg">
         </div>
 
         <div class="controls">
@@ -23,7 +24,7 @@
         </div>
 
         <div id="previewArea">
-            <p>O PDF aparecerá aqui após o upload.</p>
+            <p>O PDF original aparecerá aqui após o upload.</p>
             <iframe id="pdfPreview"></iframe>
         </div>
     </div>
