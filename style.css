@@ -1,54 +1,44 @@
-body { font-family: 'Inter', sans-serif; background: #eef2f7; padding: 20px; display: flex; justify-content: center; }
-.container { max-width: 900px; width: 100%; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f7; padding: 20px; color: #333; }
+.container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
 
-.upload-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.upload-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; }
 .field { display: flex; flex-direction: column; gap: 8px; }
 
-#editorWrapper { 
+.editor-container { 
     position: relative; 
     margin-top: 20px; 
+    border: 2px solid #ddd; 
     overflow: auto; 
-    border: 2px dashed #ccc;
-    background: #666;
-    min-height: 400px;
+    background: #525659; 
+    display: flex; 
+    justify-content: center;
+    min-height: 500px;
 }
 
-#pdfCanvasContainer { 
-    position: relative; 
-    margin: auto; 
-    display: none; /* Só aparece ao carregar PDF */
-}
+#pdfCanvas { max-width: 100%; height: auto; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
 
-#pdfRenderCanvas { display: block; max-width: 100%; }
-
-#resizableImage {
+/* O campo de imagem móvel e redimensionável */
+.draggable-resizable {
     position: absolute;
     top: 50px;
     left: 50px;
     width: 150px;
     height: 150px;
-    border: 2px solid #28a745;
-    cursor: move;
-    background-size: contain;
-    background-repeat: no-repeat;
-    display: none;
-    touch-action: none; /* Necessário para 2026/Mobile */
+    background-color: rgba(40, 167, 69, 0.2);
+    border: 2px dashed #28a745;
+    touch-action: none;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
-/* Alças de redimensionamento */
-.resizer {
-    width: 15px;
-    height: 15px;
-    background: #28a745;
-    position: absolute;
-    border-radius: 50%;
-}
-.resizer.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
-.resizer.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.placeholder-text { font-size: 12px; color: #666; text-align: center; }
 
 button { 
     padding: 12px 24px; 
-    background: #28a745; 
+    background: #007bff; 
     color: white; 
     border: none; 
     cursor: pointer; 
@@ -56,5 +46,5 @@ button {
     font-weight: bold;
     transition: 0.3s;
 }
-button:hover { background: #1e7e34; transform: translateY(-1px); }
-.hint { font-size: 0.8rem; color: #666; margin-top: 10px; }
+button:hover { background: #0056b3; }
+.instruction { font-size: 0.85rem; color: #666; margin-top: 10px; }
