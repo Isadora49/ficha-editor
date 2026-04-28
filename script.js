@@ -1,100 +1,58 @@
-const pdfInput = document.getElementById('pdfInput');
-const imageInput = document.getElementById('imageInput');
-const processBtn = document.getElementById('processBtn');
-const preview = document.getElementById('pdfPreview');
-const visualImg = document.getElementById('resizable-image');
+body { font-family: 'Inter', sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+.container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
 
-let posX = 50, posY = 50;
-let widthImg = 150, heightImg = 150;
+.upload-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+.input-group { display: flex; flex-direction: column; gap: 8px; }
 
-// 1. Preview do PDF
-pdfInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) preview.src = URL.createObjectURL(file);
-});
+#canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 700px;
+    border: 2px solid #ddd;
+    background: #525659;
+    overflow: hidden;
+    border-radius: 8px;
+}
 
-// 2. Preview da Imagem no Editor
-imageInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const url = URL.createObjectURL(file);
-        visualImg.style.backgroundImage = `url(${url})`;
-        visualImg.style.display = 'block';
-    }
-});
+#pdfPreview { width: 100%; height: 100%; border: none; }
 
-// 3. Lógica de Arrastar e Redimensionar (Interact.js)
-interact('.draggable-resizable')
-    .draggable({
-        listeners: {
-            move(event) {
-                posX += event.dx;
-                posY += event.dy;
-                event.target.style.transform = `translate(${posX}px, ${posY}px)`;
-            }
-        }
-    })
-    .resizable({
-        edges: { right: true, bottom: true },
-        listeners: {
-            move(event) {
-                widthImg = event.rect.width;
-                heightImg = event.rect.height;
-                Object.assign(event.target.style, {
-                    width: `${widthImg}px`,
-                    height: `${heightImg}px`
-                });
-            }
-        }
-    });
+/* O Campo de Imagem Editável */
+#image-field {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    width: 150px;
+    height: 150px;
+    background: rgba(0, 123, 255, 0.2);
+    border: 2px dashed #007bff;
+    box-sizing: border-box;
+    display: none; /* Só aparece quando a imagem é carregada */
+    touch-action: none;
+    z-index: 10;
+}
 
-// 4. Processamento Final
-processBtn.addEventListener('click', async () => {
-    if (!pdfInput.files[0] || !imageInput.files[0]) {
-        alert("Selecione os arquivos primeiro!");
-        return;
-    }
+.image-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    font-size: 12px;
+    color: #004a99;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
 
-    try {
-        const pdfBytes = await pdfInput.files[0].arrayBuffer();
-        const imageBytes = await imageInput.files[0].arrayBuffer();
-
-        const { PDFDocument } = PDFLib;
-        const pdfDoc = await PDFDocument.load(pdfBytes);
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-        const { width, height } = firstPage.getSize();
-
-        // Incorporar imagem
-        const imgType = imageInput.files[0].type;
-        const embeddedImage = imgType === 'image/png' ? 
-            await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
-
-        /**
-         * AJUSTE DE COORDENADAS:
-         * O HTML mede de cima para baixo. O PDF mede de baixo para cima.
-         * Precisamos converter a posição Y do navegador para a do PDF.
-         */
-        const containerRect = document.getElementById('editor-container').getBoundingClientRect();
-        const scaleX = width / containerRect.width;
-        const scaleY = height / containerRect.height;
-
-        firstPage.drawImage(embeddedImage, {
-            x: posX * scaleX,
-            y: height - (posY * scaleY) - (heightImg * scaleY), // Inversão do eixo Y
-            width: widthImg * scaleX,
-            height: heightImg * scaleY,
-        });
-
-        const modifiedPdfBytes = await pdfDoc.save();
-        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = "pdf_editado_final.pdf";
-        link.click();
-
-    } catch (err) {
-        console.error(err);
-        alert("Erro técnico: " + err.message);
-    }
-});
+button { 
+    padding: 15px 30px; 
+    background: #28a745; 
+    color: white; 
+    border: none; 
+    cursor: pointer; 
+    border-radius: 8px; 
+    font-weight: bold;
+    transition: 0.3s;
+}
+button:hover { background: #218838; transform: scale(1.02); }
+.instruction { color: #666; font-size: 0.9em; margin-top: 10px; }
