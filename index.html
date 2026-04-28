@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Interactive Editor 2026</title>
+    <title>PDF Editor Interativo 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Editor de PDF Interativo</h1>
+        <h1>Editor de PDF Pro</h1>
         
         <div class="upload-section">
             <div class="field">
@@ -24,15 +24,16 @@
         </div>
 
         <div class="controls">
-            <button id="processBtn">Gerar e Baixar PDF Final</button>
-            <p class="instruction">Arraste a imagem e redimensione as bordas com o mouse.</p>
+            <button id="processBtn">Finalizar e Baixar PDF</button>
+            <p class="hint">Arraste e redimensione a imagem sobre o PDF abaixo.</p>
         </div>
 
-        <div id="editor-container" class="editor-container">
-            <canvas id="pdfCanvas"></canvas>
-            <div id="resizable-image" class="draggable-resizable">
-                <img id="imgPreview" src="" style="display: none; width: 100%; height: 100%; pointer-events: none;">
-                <span class="placeholder-text">Aguardando imagem...</span>
+        <div id="editor-container">
+            <iframe id="pdfPreview"></iframe>
+            <div id="dropzone">
+                <div id="resizable-image" class="draggable-resizable" style="display: none;">
+                    <span class="resizer"></span>
+                </div>
             </div>
         </div>
     </div>
