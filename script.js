@@ -1,9 +1,8 @@
 const pdfInput = document.getElementById('pdfInput');
 const processBtn = document.getElementById('processBtn');
-const widthInput = document.getElementById('fieldWidth');
-const heightInput = document.getElementById('fieldHeight');
+const preview = document.getElementById('pdfPreview');
 
-// Função utilitária para ler o arquivo
+// Função para ler arquivo como ArrayBuffer (Mantida e correta)
 const readFile = (file) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -13,74 +12,67 @@ const readFile = (file) => {
     });
 };
 
+// Mostrar preview básico quando subir o arquivo
+pdfInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const blobUrl = URL.createObjectURL(file);
+        preview.src = blobUrl;
+    }
+});
+
 processBtn.addEventListener('click', async () => {
+    // Agora só verificamos se o PDF foi enviado
     if (!pdfInput.files[0]) {
-        alert("Por favor, selecione um arquivo PDF primeiro!");
+        alert("Por favor, selecione o arquivo PDF primeiro!");
         return;
     }
 
     try {
-        // Desativa o botão para evitar múltiplos cliques
-        processBtn.disabled = true;
-        processBtn.innerText = "Processando...";
-
+        // 1. Carregar os dados do PDF
         const pdfBytes = await readFile(pdfInput.files[0]);
-        const { PDFDocument, PDFName } = PDFLib;
-        
+        const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.load(pdfBytes);
-        const form = pdfDoc.getForm(); // Cria ou pega o formulário do PDF
 
-        // Pega as dimensões digitadas pelo usuário
-        const fieldWidth = parseFloat(widthInput.value) || 200;
-        const fieldHeight = parseFloat(heightInput.value) || 200;
+        // 2. Acessar ou criar o Formulário do PDF
+        const form = pdfDoc.getForm();
 
+        // 3. Criar um Botão. No padrão PDF, botões podem ser usados como contêineres de imagem (ícones)
+        const imageField = form.createButton('ImagemEditavel_1');
+
+        // 4. Pegar a primeira página
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
 
-        // 1. Cria um botão vazio no PDF
-        const fieldName = 'ImagemPerfil_' + Date.now();
-        const button = form.createButton(fieldName);
-
-        // 2. Posiciona o botão (está no topo esquerdo por padrão)
-        button.addToPage(fieldName, firstPage, {
+        // 5. Desenhar o campo de formulário na página
+        // Ajuste o x, y, width e height conforme o tamanho que desejar
+        imageField.addToPage('CampoImagem', firstPage, {
             x: 50,
-            y: firstPage.getHeight() - fieldHeight - 50,
-            width: fieldWidth,
-            height: fieldHeight,
+            y: firstPage.getHeight() - 250, // Posição calculada a partir de baixo (padrão PDF)
+            width: 200,
+            height: 200,
         });
 
-        // 3. O SEGREDO: Injeta o JavaScript do Acrobat para transformar o botão num uploader
-        const widget = button.acroField.getWidgets()[0];
-        const actionDict = pdfDoc.context.obj({
-            Type: 'Action',
-            S: 'JavaScript',
-            JS: 'event.target.buttonImportIcon();'
-        });
-        widget.dict.set(PDFName.of('A'), actionDict);
-
-        // 4. Salva o PDF modificado
+        // 6. Salvar e Gerar Download de forma segura
         const modifiedPdfBytes = await pdfDoc.save();
-
-        // 5. Gera o Download de forma segura sem quebrar
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Atualiza o visualizador no site para mostrar o PDF com o novo campo
+        preview.src = blobUrl;
+
+        // Cria o link de download e força o clique
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
+        link.href = blobUrl;
         link.download = "pdf_editavel.pdf";
         
-        // Adiciona ao DOM, clica e remove (garante que funciona em todos os navegadores)
-        document.body.appendChild(link);
+        // Adicionar o link ao DOM é essencial no Firefox/Safari modernos para o clique funcionar
+        document.body.appendChild(link); 
         link.click();
         document.body.removeChild(link);
-        
-        // Limpa a memória
-        URL.revokeObjectURL(link.href);
 
     } catch (err) {
-        console.error(err);
-        alert("Ocorreu um erro ao processar o PDF: " + err.message);
-    } finally {
-        // Restaura o botão independente de dar certo ou erro
-        processBtn.disabled = false;
-        processBtn.innerText = "Criar Campo e Baixar PDF";
+        console.error("Erro detalhado:", err);
+        alert("Erro ao processar PDF. Verifique o console para mais detalhes: " + err.message);
     }
 });
