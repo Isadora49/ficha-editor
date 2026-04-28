@@ -58,7 +58,7 @@ interact('.resize-drag')
 // 3. Processar e Criar Campo Editável
 processBtn.addEventListener('click', async () => {
     if (!pdfInput.files[0]) {
-        alert("Por favor, selecione o PDF primeiro!");
+        alert("Pr favor, selecione o PDF primeiro!");
         return;
     }
 
