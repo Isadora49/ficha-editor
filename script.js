@@ -6,15 +6,17 @@ const imageField = document.getElementById('image-field');
 let currentPos = { x: 50, y: 50 };
 let currentSize = { width: 150, height: 150 };
 
-// 1. Preview do PDF
-pdfInput.addEventListener('change', (e) => {
+// 1. Mostrar Preview do PDF e habilitar o campo interativo
+pdfInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (file) {
-        preview.src = URL.createObjectURL(file);
+        const url = URL.createObjectURL(file);
+        preview.src = url;
+        imageField.style.display = 'block'; // Campo aparece ao subir o PDF
     }
 });
 
-// 2. Interact.js para movimentação e redimensionamento
+// 2. Configuração do Interact.js (Movimentação e Redimensionamento)
 interact('.resize-drag')
     .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
@@ -45,10 +47,10 @@ interact('.resize-drag')
         }
     });
 
-// 3. Gerar PDF com campo de formulário editável
+// 3. Processar e Criar Campo Editável
 processBtn.addEventListener('click', async () => {
     if (!pdfInput.files[0]) {
-        alert("Por favor, selecione o PDF base!");
+        alert("Por favor, selecione o PDF primeiro!");
         return;
     }
 
@@ -61,21 +63,20 @@ processBtn.addEventListener('click', async () => {
         const firstPage = pages[0];
         const { width, height } = firstPage.getSize();
 
-        // Cálculo de Proporção Tela vs PDF
+        // Cálculo de Proporção
         const wrapper = document.getElementById('canvas-wrapper').getBoundingClientRect();
         const factorX = width / wrapper.width;
         const factorY = height / wrapper.height;
 
-        // Criar o campo de botão (que funciona como campo de imagem no PDF)
-        const imageButton = form.createButton('campo_imagem_editavel');
-        
-        // Definir localização e tamanho
-        // O PDF conta o Y de baixo para cima
-        const finalX = currentPos.x * factorX;
-        const finalY = height - (currentPos.y * factorY) - (currentSize.height * factorY);
-        const finalWidth = currentSize.width * factorX;
-        const finalHeight = currentSize.height * factorY;
+        // Dimensões calculadas para o PDF (Garantindo que não sejam NaN)
+        const finalX = Number(currentPos.x * factorX) || 0;
+        const finalWidth = Number(currentSize.width * factorX) || 100;
+        const finalHeight = Number(currentSize.height * factorY) || 100;
+        const finalY = height - (Number(currentPos.y * factorY) || 0) - finalHeight;
 
+        // Criar o campo de botão que aceita imagem no PDF
+        // Em PDFs editáveis, campos de imagem são tecnicamente botões com layout de ícone
+        const imageButton = form.createButton('campo_imagem_editavel');
         imageButton.addToPage(firstPage, {
             x: finalX,
             y: finalY,
@@ -83,14 +84,12 @@ processBtn.addEventListener('click', async () => {
             height: finalHeight,
         });
 
-        // Configurar para ser um campo de "Push Button" que aceita ícone (imagem)
-        // Isso torna o campo clicável para inserção de imagem em leitores de PDF
-        const buttonWidget = imageButton.acroField.getWidgets()[0];
-        buttonWidget.setAppearanceState(rgb(0.9, 0.9, 0.9)); // Fundo cinza claro no campo
-
+        // Estilização básica do campo para o usuário ver onde clicar no PDF
+        imageButton.setBackgroundColor(rgb(0.9, 0.9, 0.9));
+        
+        // Salvar e Download
         const modifiedPdfBytes = await pdfDoc.save();
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
-        
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = "pdf_com_campo_editavel.pdf";
