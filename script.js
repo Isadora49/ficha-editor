@@ -1,24 +1,22 @@
-const { PDFDocument, rgb } = PDFLib;
-
 const pdfInput = document.getElementById('pdfInput');
 const processBtn = document.getElementById('processBtn');
 const preview = document.getElementById('pdfPreview');
 
-// Inputs de dimensão
-const inW = document.getElementById('imgW');
-const inH = document.getElementById('imgH');
-const inX = document.getElementById('posX');
-const inY = document.getElementById('posY');
+const readFile = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+};
 
-// Atualiza a visualização do PDF original
+// Preview do PDF original
 pdfInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            preview.src = URL.createObjectURL(new Blob([ev.target.result], {type: 'application/pdf'}));
-        };
-        reader.readAsArrayBuffer(file);
+        const blobUrl = URL.createObjectURL(file);
+        preview.src = blobUrl;
     }
 });
 
@@ -29,48 +27,45 @@ processBtn.addEventListener('click', async () => {
     }
 
     try {
-        const arrayBuffer = await pdfInput.files[0].arrayBuffer();
-        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const pdfBytes = await readFile(pdfInput.files[0]);
+        const { PDFDocument, rgb } = PDFLib;
         
-        // 1. Acessar o formulário do PDF (ou criar um novo)
+        // Carrega o PDF
+        const pdfDoc = await PDFDocument.load(pdfBytes);
         const form = pdfDoc.getForm();
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
 
-        // 2. Criar um "Button" que funciona como campo de imagem em PDFs inteligentes
-        // Nome do campo deve ser único
-        const fieldName = `image_field_${Date.now()}`;
-        const imageButton = form.createButton(fieldName);
+        // CRIANDO O CAMPO DE IMAGEM EDITÁVEL (AcroForm Button)
+        // No padrão PDF, campos de imagem interativos são 'PushButtons' 
+        // que aceitam ícones.
+        const imageField = form.createButton('campo.imagem.editavel');
         
-        // 3. Definir o local e tamanho baseado nos inputs do site
-        imageButton.addToPage(firstPage, {
-            x: parseFloat(inX.value),
-            y: parseFloat(inY.value),
-            width: parseFloat(inW.value),
-            height: parseFloat(inH.value),
+        // Define a posição e tamanho (X, Y, Largura, Altura)
+        // Você pode ajustar esses valores para onde deseja que o campo apareça
+        imageField.addToPage(firstPage, {
+            x: 100,
+            y: 400,
+            width: 200,
+            height: 150,
+            textColor: rgb(0, 0, 0),
+            backgroundColor: rgb(0.9, 0.9, 0.9),
         });
 
-        // Opcional: Estilizar o campo para o usuário saber onde clicar no PDF
-        firstPage.drawRectangle({
-            x: parseFloat(inX.value),
-            y: parseFloat(inY.value),
-            width: parseFloat(inW.value),
-            height: parseFloat(inH.value),
-            borderColor: rgb(0.7, 0.7, 0.7),
-            borderWidth: 1,
-        });
+        // Legenda que aparece no campo antes de inserir a imagem
+        imageField.setLabel('Clique para inserir imagem');
 
-        // 4. Finalizar e salvar
-        const pdfBytes = await pdfDoc.save();
-        
-        // CORREÇÃO DO DOWNLOAD: Usar download direto via Blob
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        // Salva as alterações no formulário
+        const modifiedPdfBytes = await pdfDoc.save();
+
+        // Download Seguro
+        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
         const downloadUrl = URL.createObjectURL(blob);
         
-        // Atualizar preview com o novo PDF
+        // Atualiza o preview com o novo PDF (contendo o campo)
         preview.src = downloadUrl;
 
-        // Criar link temporário para download
+        // Gatilho de download
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = "pdf_com_campo_editavel.pdf";
@@ -79,7 +74,7 @@ processBtn.addEventListener('click', async () => {
         document.body.removeChild(link);
 
     } catch (err) {
-        console.error(err);
-        alert("Erro técnico: " + err.message);
+        console.error("Erro no processamento:", err);
+        alert("Falha ao gerar PDF: " + err.message);
     }
 });
