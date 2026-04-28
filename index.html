@@ -3,37 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor Interativo 2026</title>
+    <title>Editor Interativo de PDF</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Editor de PDF Pro</h1>
+        <h1>Editor de PDF Editável</h1>
         
         <div class="upload-section">
-            <div class="field">
+            <div class="input-group">
                 <label>1. Arquivo PDF:</label>
                 <input type="file" id="pdfInput" accept=".pdf">
             </div>
-            <div class="field">
-                <label>2. Imagem para Inserir:</label>
+            <div class="input-group">
+                <label>2. Foto/Imagem:</label>
                 <input type="file" id="imageInput" accept="image/*">
             </div>
         </div>
 
         <div class="controls">
-            <button id="processBtn">Finalizar e Baixar PDF</button>
-            <p class="hint">Arraste e redimensione a imagem sobre o PDF abaixo.</p>
+            <button id="processBtn">Gerar e Baixar PDF Final</button>
+            <p class="instruction">Arraste e redimensione a moldura azul sobre o PDF.</p>
         </div>
 
-        <div id="editor-container">
+        <div id="canvas-wrapper">
             <iframe id="pdfPreview"></iframe>
-            <div id="dropzone">
-                <div id="resizable-image" class="draggable-resizable" style="display: none;">
-                    <span class="resizer"></span>
-                </div>
+            
+            <div id="image-field" class="resize-drag">
+                <div class="image-content">Posicione a Imagem Aqui</div>
             </div>
         </div>
     </div>
