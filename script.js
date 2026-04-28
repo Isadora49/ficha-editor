@@ -1,84 +1,86 @@
 const pdfInput = document.getElementById('pdfInput');
-const imageInput = document.getElementById('imageInput');
 const processBtn = document.getElementById('processBtn');
-const preview = document.getElementById('pdfPreview');
+const widthInput = document.getElementById('fieldWidth');
+const heightInput = document.getElementById('fieldHeight');
 
-// Mostrar preview básico quando subir o arquivo
-pdfInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const blobUrl = URL.createObjectURL(file);
-        preview.src = blobUrl;
-    }
-});
+// Função utilitária para ler o arquivo
+const readFile = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+};
 
 processBtn.addEventListener('click', async () => {
-    const pdfFile = pdfInput.files[0];
-    const imageFile = imageInput.files[0];
-
-    if (!pdfFile || !imageFile) {
-        alert("Por favor, selecione o PDF e a Imagem!");
+    if (!pdfInput.files[0]) {
+        alert("Por favor, selecione um arquivo PDF primeiro!");
         return;
     }
 
     try {
-        // 1. Carregar os dados usando a API moderna nativa (arrayBuffer)
-        const pdfBytes = await pdfFile.arrayBuffer();
-        const imageBytes = await imageFile.arrayBuffer();
+        // Desativa o botão para evitar múltiplos cliques
+        processBtn.disabled = true;
+        processBtn.innerText = "Processando...";
 
-        // 2. Carregar o documento PDF
-        const { PDFDocument } = PDFLib;
-        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const pdfBytes = await readFile(pdfInput.files[0]);
+        const { PDFDocument, PDFName } = PDFLib;
         
-        // Suporta PNG ou JPEG e valida o tipo para não quebrar
-        const imgType = imageFile.type;
-        let embeddedImage;
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const form = pdfDoc.getForm(); // Cria ou pega o formulário do PDF
 
-        if (imgType === 'image/png') {
-            embeddedImage = await pdfDoc.embedPng(imageBytes);
-        } else if (imgType === 'image/jpeg' || imgType === 'image/jpg') {
-            embeddedImage = await pdfDoc.embedJpg(imageBytes);
-        } else {
-            alert("Formato de imagem não suportado! Por favor, utilize apenas PNG ou JPG.");
-            return;
-        }
+        // Pega as dimensões digitadas pelo usuário
+        const fieldWidth = parseFloat(widthInput.value) || 200;
+        const fieldHeight = parseFloat(heightInput.value) || 200;
 
-        // 3. Pegar a primeira página e as dimensões da imagem
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
-        const { width, height } = embeddedImage.scale(0.5); // Escala 50%
 
-        // 4. Desenhar a imagem no PDF de fato
-        firstPage.drawImage(embeddedImage, {
+        // 1. Cria um botão vazio no PDF
+        const fieldName = 'ImagemPerfil_' + Date.now();
+        const button = form.createButton(fieldName);
+
+        // 2. Posiciona o botão (está no topo esquerdo por padrão)
+        button.addToPage(fieldName, firstPage, {
             x: 50,
-            y: 50,
-            width: width,
-            height: height,
+            y: firstPage.getHeight() - fieldHeight - 50,
+            width: fieldWidth,
+            height: fieldHeight,
         });
 
-        // 5. Salvar e Gerar Download Robusto
+        // 3. O SEGREDO: Injeta o JavaScript do Acrobat para transformar o botão num uploader
+        const widget = button.acroField.getWidgets()[0];
+        const actionDict = pdfDoc.context.obj({
+            Type: 'Action',
+            S: 'JavaScript',
+            JS: 'event.target.buttonImportIcon();'
+        });
+        widget.dict.set(PDFName.of('A'), actionDict);
+
+        // 4. Salva o PDF modificado
         const modifiedPdfBytes = await pdfDoc.save();
+
+        // 5. Gera o Download de forma segura sem quebrar
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
-        
-        // Criar a URL do Blob
-        const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = "pdf_modificado.pdf";
+        link.href = URL.createObjectURL(blob);
+        link.download = "pdf_editavel.pdf";
         
-        // Passo essencial para navegadores modernos: adicionar ao DOM antes de clicar
+        // Adiciona ao DOM, clica e remove (garante que funciona em todos os navegadores)
         document.body.appendChild(link);
         link.click();
-        
-        // Limpar o DOM e a memória para não quebrar nas próximas vezes
         document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-
-        // Opcional: Atualizar o preview com o PDF já modificado para o usuário ver o resultado
-        preview.src = URL.createObjectURL(blob);
+        
+        // Limpa a memória
+        URL.revokeObjectURL(link.href);
 
     } catch (err) {
-        console.error("Erro interno:", err);
-        alert("Erro ao processar PDF: " + err.message);
+        console.error(err);
+        alert("Ocorreu um erro ao processar o PDF: " + err.message);
+    } finally {
+        // Restaura o botão independente de dar certo ou erro
+        processBtn.disabled = false;
+        processBtn.innerText = "Criar Campo e Baixar PDF";
     }
 });
