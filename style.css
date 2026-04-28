@@ -1,43 +1,34 @@
-body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    background: #eef2f7; 
-    padding: 40px; 
-    display: flex; 
-    justify-content: center; 
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #eef2f7; padding: 20px; margin: 0; }
+.container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+
+.toolbar { display: flex; gap: 20px; align-items: flex-end; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 20px; }
+.input-group { display: flex; flex-direction: column; font-size: 14px; font-weight: bold; }
+
+#editor-container { position: relative; width: 100%; height: 600px; border: 2px dashed #ccc; overflow: auto; background: #999; }
+#pdf-canvas-wrapper { position: relative; width: 595px; height: 842px; margin: auto; background: white; }
+
+#pdfPreview { width: 100%; height: 100%; border: none; pointer-events: none; }
+#overlay-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: all; }
+
+/* Estilo do Elemento Arrastável/Redimensionável */
+#resizable-image {
+    width: 150px; height: 100px;
+    border: 2px solid #28a745;
+    position: absolute;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+    display: none; /* Só aparece quando subir imagem */
 }
-.container { 
-    max-width: 900px; 
-    width: 100%;
-    background: white; 
-    padding: 30px; 
-    border-radius: 12px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+
+.resizer {
+    width: 15px; height: 15px;
+    background: #28a745;
+    position: absolute;
+    right: -7px; bottom: -7px;
+    cursor: nwse-resize;
+    border-radius: 50%;
 }
-.upload-section { 
-    margin: 20px 0;
-    padding: 20px;
-    border: 2px dashed #cbd5e0;
-    border-radius: 8px;
-    text-align: center;
-}
-#pdfPreview { 
-    width: 100%; 
-    height: 600px; 
-    border: 1px solid #ddd; 
-    margin-top: 20px; 
-    border-radius: 4px;
-}
-button { 
-    width: 100%;
-    padding: 15px; 
-    background: #4a90e2; 
-    color: white; 
-    border: none; 
-    cursor: pointer; 
-    border-radius: 6px; 
-    font-weight: bold;
-    transition: background 0.3s;
-}
-button:hover { 
-    background: #357abd; 
-}
+
+button { padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+button:hover { background: #218838; transform: translateY(-2px); }
