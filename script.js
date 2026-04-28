@@ -1,121 +1,100 @@
-// Variáveis Globais para controle de posição e escala
-let xPos = 50, yPos = 50;
-let imgWidth = 150, imgHeight = 150;
-let currentPdfFile = null;
-let currentImageFile = null;
+const pdfInput = document.getElementById('pdfInput');
+const imageInput = document.getElementById('imageInput');
+const processBtn = document.getElementById('processBtn');
+const preview = document.getElementById('pdfPreview');
+const visualImg = document.getElementById('resizable-image');
 
-// Configuração do Interact.js (Movimentação e Redimensionamento)
+let posX = 50, posY = 50;
+let widthImg = 150, heightImg = 150;
+
+// 1. Preview do PDF
+pdfInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) preview.src = URL.createObjectURL(file);
+});
+
+// 2. Preview da Imagem no Editor
+imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const url = URL.createObjectURL(file);
+        visualImg.style.backgroundImage = `url(${url})`;
+        visualImg.style.display = 'block';
+    }
+});
+
+// 3. Lógica de Arrastar e Redimensionar (Interact.js)
 interact('.draggable-resizable')
-  .draggable({
-    listeners: {
-      move (event) {
-        xPos += event.dx;
-        yPos += event.dy;
-        event.target.style.transform = `translate(${xPos}px, ${yPos}px)`;
-      }
-    }
-  })
-  .resizable({
-    edges: { left: true, right: true, bottom: true, top: true },
-    listeners: {
-      move (event) {
-        let { x, y } = event.target.dataset;
-        x = (parseFloat(x) || 0) + event.deltaRect.left;
-        y = (parseFloat(y) || 0) + event.deltaRect.top;
+    .draggable({
+        listeners: {
+            move(event) {
+                posX += event.dx;
+                posY += event.dy;
+                event.target.style.transform = `translate(${posX}px, ${posY}px)`;
+            }
+        }
+    })
+    .resizable({
+        edges: { right: true, bottom: true },
+        listeners: {
+            move(event) {
+                widthImg = event.rect.width;
+                heightImg = event.rect.height;
+                Object.assign(event.target.style, {
+                    width: `${widthImg}px`,
+                    height: `${heightImg}px`
+                });
+            }
+        }
+    });
 
-        Object.assign(event.target.style, {
-          width: `${event.rect.width}px`,
-          height: `${event.rect.height}px`,
-          transform: `translate(${xPos}px, ${yPos}px)`
-        });
-
-        imgWidth = event.rect.width;
-        imgHeight = event.rect.height;
-      }
-    }
-  });
-
-// Visualizar PDF no Canvas do Site
-document.getElementById('pdfInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    currentPdfFile = file;
-    
-    // Para visualização real do PDF usamos um truque de renderização
-    // ou simplesmente exibimos o PDF no fundo do container.
-    const fileURL = URL.createObjectURL(file);
-    const pdfData = await file.arrayBuffer();
-    
-    // Usamos PDF-LIB para detectar dimensões reais e ajustar o container
-    const pdfDoc = await PDFLib.PDFDocument.load(pdfData);
-    const page = pdfDoc.getPages()[0];
-    const pWidth = page.getWidth();
-    const pHeight = page.getHeight();
-
-    alert("PDF carregado! Use a área abaixo para posicionar sua imagem.");
-});
-
-// Visualizar Imagem no campo móvel
-document.getElementById('imageInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    currentImageFile = file;
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = document.getElementById('imgPreview');
-        img.src = event.target.result;
-        img.style.display = 'block';
-        document.querySelector('.placeholder-text').style.display = 'none';
-    };
-    reader.readAsDataURL(file);
-});
-
-// Processar e Gerar Download
-document.getElementById('processBtn').addEventListener('click', async () => {
-    if (!currentPdfFile || !currentImageFile) {
-        alert("Selecione ambos os arquivos primeiro!");
+// 4. Processamento Final
+processBtn.addEventListener('click', async () => {
+    if (!pdfInput.files[0] || !imageInput.files[0]) {
+        alert("Selecione os arquivos primeiro!");
         return;
     }
 
     try {
-        const pdfBytes = await currentPdfFile.arrayBuffer();
-        const imageBytes = await currentImageFile.arrayBuffer();
-        
+        const pdfBytes = await pdfInput.files[0].arrayBuffer();
+        const imageBytes = await imageInput.files[0].arrayBuffer();
+
         const { PDFDocument } = PDFLib;
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
-        
-        const imgType = currentImageFile.type;
-        const embeddedImage = imgType.includes('png') ? 
+        const { width, height } = firstPage.getSize();
+
+        // Incorporar imagem
+        const imgType = imageInput.files[0].type;
+        const embeddedImage = imgType === 'image/png' ? 
             await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
 
-        const { width: pWidth, height: pHeight } = firstPage.getSize();
-        
-        // CÁLCULO DE COORDENADAS (Conversão Tela -> PDF)
-        // O PDF no PDF-Lib começa o (0,0) no canto INFERIOR ESQUERDO.
-        // No navegador, começa no SUPERIOR ESQUERDO.
-        const pdfX = xPos; 
-        const pdfY = pHeight - yPos - imgHeight; 
+        /**
+         * AJUSTE DE COORDENADAS:
+         * O HTML mede de cima para baixo. O PDF mede de baixo para cima.
+         * Precisamos converter a posição Y do navegador para a do PDF.
+         */
+        const containerRect = document.getElementById('editor-container').getBoundingClientRect();
+        const scaleX = width / containerRect.width;
+        const scaleY = height / containerRect.height;
 
         firstPage.drawImage(embeddedImage, {
-            x: pdfX,
-            y: pdfY,
-            width: imgWidth,
-            height: imgHeight,
+            x: posX * scaleX,
+            y: height - (posY * scaleY) - (heightImg * scaleY), // Inversão do eixo Y
+            width: widthImg * scaleX,
+            height: heightImg * scaleY,
         });
 
         const modifiedPdfBytes = await pdfDoc.save();
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_final_editado.pdf";
+        link.download = "pdf_editado_final.pdf";
         link.click();
-        
-        alert("Sucesso! PDF gerado com as alterações.");
+
     } catch (err) {
         console.error(err);
-        alert("Erro no processamento: " + err.message);
+        alert("Erro técnico: " + err.message);
     }
 });
