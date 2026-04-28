@@ -2,34 +2,28 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Criador de Campo de Imagem PDF</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inserir Campo de Imagem no PDF</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Inserir Campo de Imagem em PDF</h1>
+        <h1>Criador de Campo de Imagem em PDF</h1>
+        <p>Faça o upload do seu PDF. O sistema criará um campo de imagem (Botão) no documento. Após baixar, abra-o no <strong>Adobe Acrobat</strong> para conseguir clicar e inserir a imagem.</p>
         
         <div class="upload-section">
-            <label>1. Escolha o PDF base:</label>
+            <label>1. Escolha o arquivo PDF:</label>
             <input type="file" id="pdfInput" accept=".pdf">
-        </div>
-
-        <div class="dimensions-section">
-            <label>Largura (px): 
-                <input type="number" id="fieldWidth" value="250">
-            </label>
-            <label>Altura (px): 
-                <input type="number" id="fieldHeight" value="250">
-            </label>
         </div>
 
         <div class="controls">
             <button id="processBtn">Criar Campo e Baixar PDF</button>
         </div>
 
-        <div class="instructions">
-            <p><strong>Atenção:</strong> Após baixar, abra o PDF no <strong>Adobe Acrobat Reader</strong> ou <strong>Foxit</strong>. Os visualizadores de PDF de navegadores (Chrome, Edge) geralmente bloqueiam a inserção de imagens por segurança.</p>
+        <div id="previewArea">
+            <p>Visualização:</p>
+            <iframe id="pdfPreview"></iframe>
         </div>
     </div>
     <script src="script.js"></script>
