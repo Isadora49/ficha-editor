@@ -3,39 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor PDF Interativo 2026</title>
+    <title>PDF Interactive Editor 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Editor de PDF Pro</h1>
+        <h1>Editor de PDF Interativo</h1>
         
-        <div class="toolbar">
-            <div class="input-group">
-                <label for="pdfInput">📄 PDF Base</label>
+        <div class="upload-section">
+            <div class="field">
+                <label>1. Escolha o PDF:</label>
                 <input type="file" id="pdfInput" accept=".pdf">
             </div>
-            <div class="input-group">
-                <label for="imageInput">🖼️ Imagem/Assinatura</label>
+            <div class="field">
+                <label>2. Escolha a Imagem:</label>
                 <input type="file" id="imageInput" accept="image/*">
             </div>
-            <button id="downloadBtn">Finalizar e Baixar PDF</button>
         </div>
 
-        <div id="editor-container">
-            <div id="pdf-canvas-wrapper">
-                <iframe id="pdfPreview"></iframe>
-                <div id="overlay-container">
-                    <div id="resizable-image" class="draggable">
-                        <span class="resizer"></span>
-                        <img id="inner-img" src="" style="display: none; width: 100%; height: 100%;">
-                    </div>
+        <div class="controls">
+            <button id="processBtn">Gerar e Baixar PDF Final</button>
+            <p class="hint">Arraste a imagem e use as bordas para redimensionar.</p>
+        </div>
+
+        <div id="editorWrapper">
+            <div id="pdfCanvasContainer">
+                <canvas id="pdfRenderCanvas"></canvas>
+                <div id="resizableImage" class="draggable">
+                    <div class="resizer sw"></div>
+                    <div class="resizer se"></div>
                 </div>
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
-</body>
-</html>
+    <script src="script.
