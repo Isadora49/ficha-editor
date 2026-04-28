@@ -3,8 +3,8 @@ const processBtn = document.getElementById('processBtn');
 const preview = document.getElementById('pdfPreview');
 const imageField = document.getElementById('image-field');
 
-// Inicialização segura das variáveis
-let currentPos = { x: 0, y: 0 };
+// Valores iniciais fixos para evitar undefined
+let currentPos = { x: 50, y: 50 };
 let currentSize = { width: 150, height: 150 };
 
 // 1. Mostrar Preview do PDF
@@ -15,24 +15,20 @@ pdfInput.addEventListener('change', async (e) => {
         preview.src = url;
         imageField.style.display = 'block';
         
-        // Resetar posição visual para o início do wrapper ao carregar novo PDF
-        currentPos = { x: 0, y: 0 };
-        imageField.style.transform = `translate(0px, 0px)`;
+        // Reset visual
+        currentPos = { x: 50, y: 50 };
+        imageField.style.transform = `translate(50px, 50px)`;
     }
 });
 
-// 2. Configuração do Interact.js (Movimentação e Redimensionamento)
+// 2. Configuração do Interact.js
 interact('.resize-drag')
     .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
             move(event) {
-                // Garantir que os valores iniciais não sejam NaN
-                let x = Number(currentPos.x) || 0;
-                let y = Number(currentPos.y) || 0;
-
-                x += event.deltaRect.left;
-                y += event.deltaRect.top;
+                let x = (parseFloat(currentPos.x) || 0) + event.deltaRect.left;
+                let y = (parseFloat(currentPos.y) || 0) + event.deltaRect.top;
 
                 Object.assign(event.target.style, {
                     width: `${event.rect.width}px`,
@@ -48,17 +44,17 @@ interact('.resize-drag')
     .draggable({
         listeners: {
             move(event) {
-                currentPos.x = (Number(currentPos.x) || 0) + event.dx;
-                currentPos.y = (Number(currentPos.y) || 0) + event.dy;
+                currentPos.x = (parseFloat(currentPos.x) || 0) + event.dx;
+                currentPos.y = (parseFloat(currentPos.y) || 0) + event.dy;
                 event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
             }
         }
     });
 
-// 3. Processar e Criar Campo Editável
+// 3. Processar e Gerar Download
 processBtn.addEventListener('click', async () => {
     if (!pdfInput.files[0]) {
-        alert("Pr favor, selecione o PDF primeiro!");
+        alert("Por favor, selecione o PDF primeiro!");
         return;
     }
 
@@ -67,50 +63,45 @@ processBtn.addEventListener('click', async () => {
         const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const form = pdfDoc.getForm();
-        const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
-        const { width: pdfWidth, height: pdfHeight } = firstPage.getSize();
+        const firstPage = pdfDoc.getPages()[0];
+        const { width: pdfW, height: pdfH } = firstPage.getSize();
 
-        // Captura o retângulo do wrapper no momento exato do processamento
+        // Pegar dimensões reais do container no site
         const wrapper = document.getElementById('canvas-wrapper');
-        const wrapperRect = wrapper.getBoundingClientRect();
-        
-        // Fatores de conversão (Pontos do PDF / Pixels da Tela)
-        // Usamos Math.max para evitar divisão por zero
-        const factorX = pdfWidth / Math.max(wrapperRect.width, 1);
-        const factorY = pdfHeight / Math.max(wrapperRect.height, 1);
+        const wWidth = wrapper.clientWidth || 800;
+        const wHeight = wrapper.clientHeight || 650;
 
-        // Cálculos blindados contra NaN com Number() e fallback para 0
-        const finalX = Number(currentPos.x * factorX) || 0;
-        const finalWidth = Number(currentSize.width * factorX) || 100;
-        const finalHeight = Number(currentSize.height * factorY) || 100;
-        
-        // No PDF, a coordenada Y começa de baixo para cima
-        const finalY = pdfHeight - (Number(currentPos.y * factorY) || 0) - finalHeight;
+        const fX = pdfW / wWidth;
+        const fY = pdfH / wHeight;
 
-        // Criar o campo de botão
-        const imageButton = form.createButton('campo_imagem_editavel_' + Date.now());
+        // Limpeza absoluta de dados (Garante que são números)
+        const x = Math.max(0, parseFloat(currentPos.x) * fX) || 0;
+        const w = Math.max(20, parseFloat(currentSize.width) * fX) || 100;
+        const h = Math.max(20, parseFloat(currentSize.height) * fY) || 100;
+        const y = Math.max(0, pdfH - (parseFloat(currentPos.y) * fY) - h) || 0;
+
+        // Criar o campo com ID único em string
+        const fieldName = "campo_" + Math.floor(Math.random() * 10000).toString();
+        const button = form.createButton(fieldName);
         
-        imageButton.addToPage(firstPage, {
-            x: finalX,
-            y: finalY,
-            width: finalWidth,
-            height: finalHeight,
+        button.addToPage(firstPage, {
+            x: x,
+            y: y,
+            width: w,
+            height: h,
         });
 
-        // Estilização básica (Cinza claro)
-        imageButton.setBackgroundColor(rgb(0.9, 0.9, 0.9));
+        button.setBackgroundColor(rgb(0.9, 0.9, 0.9));
 
-        // Salvar e Download
-        const modifiedPdfBytes = await pdfDoc.save();
-        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+        const modifiedBytes = await pdfDoc.save();
+        const blob = new Blob([modifiedBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_com_campo_editavel.pdf";
+        link.download = "pdf_editavel_2026.pdf";
         link.click();
 
     } catch (err) {
-        console.error("Erro detalhado:", err);
-        alert("Erro ao processar PDF: " + err.message);
+        console.error(err);
+        alert("Erro técnico: " + err.message);
     }
 });
