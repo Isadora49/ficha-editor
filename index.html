@@ -3,26 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inserir Campo de Imagem no PDF</title>
+    <title>PDF Interactive Creator</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Criador de Campo de Imagem em PDF</h1>
-        <p>Faça o upload do seu PDF. O sistema criará um campo de imagem (Botão) no documento. Após baixar, abra-o no <strong>Adobe Acrobat</strong> para conseguir clicar e inserir a imagem.</p>
+        <h1>Criador de PDF com Campo de Imagem</h1>
         
         <div class="upload-section">
-            <label>1. Escolha o arquivo PDF:</label>
+            <label>1. Carregar PDF de Base:</label>
             <input type="file" id="pdfInput" accept=".pdf">
+            
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>Largura do Campo:</label>
+                    <input type="number" id="imgW" value="150">
+                </div>
+                <div class="control-group">
+                    <label>Altura do Campo:</label>
+                    <input type="number" id="imgH" value="100">
+                </div>
+                <div class="control-group">
+                    <label>Posição X:</label>
+                    <input type="number" id="posX" value="50">
+                </div>
+                <div class="control-group">
+                    <label>Posição Y (Bottom):</label>
+                    <input type="number" id="posY" value="50">
+                </div>
+            </div>
         </div>
 
-        <div class="controls">
-            <button id="processBtn">Criar Campo e Baixar PDF</button>
+        <div class="actions">
+            <button id="processBtn">Gerar PDF com Campo Editável</button>
         </div>
 
         <div id="previewArea">
-            <p>Visualização:</p>
+            <h3>Visualização Prévia</h3>
             <iframe id="pdfPreview"></iframe>
         </div>
     </div>
