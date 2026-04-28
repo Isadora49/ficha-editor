@@ -3,7 +3,7 @@ const processBtn = document.getElementById('processBtn');
 const preview = document.getElementById('pdfPreview');
 const imageField = document.getElementById('image-field');
 
-// Valores iniciais fixos para evitar undefined
+// Valores iniciais garantidos como números
 let currentPos = { x: 50, y: 50 };
 let currentSize = { width: 150, height: 150 };
 
@@ -15,20 +15,27 @@ pdfInput.addEventListener('change', async (e) => {
         preview.src = url;
         imageField.style.display = 'block';
         
-        // Reset visual
+        // Reset visual seguro
         currentPos = { x: 50, y: 50 };
+        currentSize = { width: 150, height: 150 };
         imageField.style.transform = `translate(50px, 50px)`;
+        imageField.style.width = '150px';
+        imageField.style.height = '150px';
     }
 });
 
-// 2. Configuração do Interact.js
+// 2. Configuração do Interact.js (Blindada contra valores nulos)
 interact('.resize-drag')
     .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
             move(event) {
-                let x = (parseFloat(currentPos.x) || 0) + event.deltaRect.left;
-                let y = (parseFloat(currentPos.y) || 0) + event.deltaRect.top;
+                // Força a conversão para número para evitar NaN
+                let x = (parseFloat(currentPos.x) || 0);
+                let y = (parseFloat(currentPos.y) || 0);
+
+                x += event.deltaRect.left;
+                y += event.deltaRect.top;
 
                 Object.assign(event.target.style, {
                     width: `${event.rect.width}px`,
@@ -63,45 +70,55 @@ processBtn.addEventListener('click', async () => {
         const { PDFDocument, rgb } = PDFLib;
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const form = pdfDoc.getForm();
-        const firstPage = pdfDoc.getPages()[0];
+        const pages = pdfDoc.getPages();
+        
+        if (pages.length === 0) throw new Error("PDF sem páginas.");
+        
+        const firstPage = pages[0];
         const { width: pdfW, height: pdfH } = firstPage.getSize();
 
-        // Pegar dimensões reais do container no site
+        // Dimensões do container (wrapper)
         const wrapper = document.getElementById('canvas-wrapper');
-        const wWidth = wrapper.clientWidth || 800;
-        const wHeight = wrapper.clientHeight || 650;
+        const wWidth = wrapper.offsetWidth || 800;
+        const wHeight = wrapper.offsetHeight || 650;
 
+        // Fatores de escala
         const fX = pdfW / wWidth;
         const fY = pdfH / wHeight;
 
-        // Limpeza absoluta de dados (Garante que são números)
-        const x = Math.max(0, parseFloat(currentPos.x) * fX) || 0;
-        const w = Math.max(20, parseFloat(currentSize.width) * fX) || 100;
-        const h = Math.max(20, parseFloat(currentSize.height) * fY) || 100;
-        const y = Math.max(0, pdfH - (parseFloat(currentPos.y) * fY) - h) || 0;
-
-        // Criar o campo com ID único em string
-        const fieldName = "campo_" + Math.floor(Math.random() * 10000).toString();
-        const button = form.createButton(fieldName);
+        // --- CORREÇÃO CRÍTICA: Sanitização total para evitar NaN ---
+        const safeX = Number(parseFloat(currentPos.x) * fX) || 0;
+        const safeW = Number(parseFloat(currentSize.width) * fX) || 100;
+        const safeH = Number(parseFloat(currentSize.height) * fY) || 100;
         
+        // No PDF o Y é de baixo para cima, calculamos o topo menos a posição e altura
+        const safeY = Number(pdfH - (parseFloat(currentPos.y) * fY) - safeH) || 0;
+
+        // Criar nome único para o campo (String obrigatória)
+        const fieldID = "img_edit_" + Math.random().toString(36).substr(2, 9);
+        
+        const button = form.createButton(fieldID);
+        
+        // Adicionar à página com valores garantidos como números
         button.addToPage(firstPage, {
-            x: x,
-            y: y,
-            width: w,
-            height: h,
+            x: safeX,
+            y: safeY,
+            width: safeW,
+            height: safeH,
         });
 
         button.setBackgroundColor(rgb(0.9, 0.9, 0.9));
 
+        // Gerar e baixar
         const modifiedBytes = await pdfDoc.save();
         const blob = new Blob([modifiedBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_editavel_2026.pdf";
+        link.download = "documento_editavel_2026.pdf";
         link.click();
 
     } catch (err) {
-        console.error(err);
-        alert("Erro técnico: " + err.message);
+        console.error("Erro no processamento:", err);
+        alert("Erro ao processar PDF: Certifique-se de que o arquivo é um PDF válido.");
     }
 });
