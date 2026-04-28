@@ -3,36 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor Interativo de PDF</title>
+    <title>Gerador de Campo de Imagem PDF</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Editor de PDF Editável</h1>
+        <h1>Criador de PDF com Campo de Imagem</h1>
         
         <div class="upload-section">
             <div class="input-group">
-                <label>1. Arquivo PDF:</label>
+                <label>1. Selecione o PDF base:</label>
                 <input type="file" id="pdfInput" accept=".pdf">
-            </div>
-            <div class="input-group">
-                <label>2. Foto/Imagem:</label>
-                <input type="file" id="imageInput" accept="image/*">
             </div>
         </div>
 
         <div class="controls">
-            <button id="processBtn">Gerar e Baixar PDF Final</button>
-            <p class="instruction">Arraste e redimensione a moldura azul sobre o PDF.</p>
+            <button id="processBtn">Baixar PDF com Campo Editável</button>
+            <p class="instruction">Posicione o quadrado azul onde deseja que o campo de imagem apareça no PDF final.</p>
         </div>
 
         <div id="canvas-wrapper">
             <iframe id="pdfPreview"></iframe>
-            
-            <div id="image-field" class="resize-drag">
-                <div class="image-content">Posicione a Imagem Aqui</div>
+            <div id="image-field" class="resize-drag" style="display: block;">
+                <div class="image-content">Campo de Imagem Editável</div>
             </div>
         </div>
     </div>
