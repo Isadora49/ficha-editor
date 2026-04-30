@@ -1,100 +1,91 @@
 const pdfInput = document.getElementById('pdfInput');
-const processBtn = document.getElementById('processBtn');
-const preview = document.getElementById('pdfPreview');
+const canvas = document.getElementById('pdf-canvas');
 const imageField = document.getElementById('image-field');
-const wrapper = document.getElementById('canvas-wrapper');
+const ctx = canvas.getContext('2d');
 
-let currentPos = { x: 50, y: 50 };
-let currentSize = { width: 150, height: 150 };
+let pdfDocLib = null;
+let pdfBytes = null;
+let currentPos = { x: 20, y: 20 };
+let currentSize = { width: 120, height: 120 };
 
+// 1. Carregar e Renderizar PDF no Canvas (Mais compatível que iframe)
 pdfInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
-    if (file) {
-        const url = URL.createObjectURL(file);
-        preview.src = url;
-        imageField.style.display = 'block';
-        // Reset visual
-        currentPos = { x: 50, y: 50 };
-        currentSize = { width: 150, height: 150 };
-        imageField.style.transform = `translate(50px, 50px)`;
-        imageField.style.width = '150px';
-        imageField.style.height = '150px';
-    }
+    if (!file) return;
+
+    pdfBytes = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({data: pdfBytes});
+    const pdf = await loadingTask.promise;
+    const page = await pdf.getPage(1);
+    
+    const viewport = page.getViewport({scale: 1.5});
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({canvasContext: ctx, viewport: viewport}).promise;
+    imageField.style.display = 'flex';
 });
 
-interact('.resize-drag').resizable({
-    edges: { left: true, right: true, bottom: true, top: true },
+// 2. Movimentação (Interact.js)
+interact('.resize-drag').draggable({
     listeners: {
         move(event) {
-            let x = (parseFloat(currentPos.x) || 0) + event.deltaRect.left;
-            let y = (parseFloat(currentPos.y) || 0) + event.deltaRect.top;
-            Object.assign(event.target.style, {
-                width: `${event.rect.width}px`,
-                height: `${event.rect.height}px`,
-                transform: `translate(${x}px, ${y}px)`
-            });
-            currentPos = { x, y };
-            currentSize = { width: event.rect.width, height: event.rect.height };
-        }
-    }
-}).draggable({
-    listeners: {
-        move(event) {
-            currentPos.x = (parseFloat(currentPos.x) || 0) + event.dx;
-            currentPos.y = (parseFloat(currentPos.y) || 0) + event.dy;
+            currentPos.x += event.dx;
+            currentPos.y += event.dy;
             event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
         }
     }
+}).resizable({
+    edges: { left: true, right: true, bottom: true, top: true },
+    listeners: {
+        move(event) {
+            currentSize.width = event.rect.width;
+            currentSize.height = event.rect.height;
+            currentPos.x += event.deltaRect.left;
+            currentPos.y += event.deltaRect.top;
+
+            Object.assign(event.target.style, {
+                width: `${currentSize.width}px`,
+                height: `${currentSize.height}px`,
+                transform: `translate(${currentPos.x}px, ${currentPos.y}px)`
+            });
+        }
+    }
 });
 
-processBtn.addEventListener('click', async () => {
-    if (!pdfInput.files[0]) return alert("Por favor, carregue o PDF primeiro.");
+// 3. Geração do PDF (Conversão de Coordenadas Canvas -> PDF)
+document.getElementById('processBtn').addEventListener('click', async () => {
+    if (!pdfBytes) return alert("Selecione um PDF");
 
-    try {
-        const { PDFDocument, rgb } = PDFLib;
-        const fileBytes = await pdfInput.files[0].arrayBuffer();
-        const pdfDoc = await PDFDocument.load(fileBytes);
-        const page = pdfDoc.getPages()[0];
-        const { width: pdfW, height: pdfH } = page.getSize();
+    const { PDFDocument, rgb } = PDFLib;
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const page = pdfDoc.getPages()[0];
+    const { width, height } = page.getSize();
 
-        // SEGURANÇA: Usamos o tamanho do WRAPPER (container) para o cálculo
-        // Isso evita o erro de NaN se o iframe estiver com erro ou carinha triste.
-        const viewW = wrapper.offsetWidth;
-        const viewH = wrapper.offsetHeight;
+    // Cálculo de proporção entre o que vemos na tela (canvas) e o PDF real
+    const scaleX = width / canvas.width;
+    const scaleY = height / canvas.height;
 
-        const scaleX = pdfW / viewW;
-        const scaleY = pdfH / viewH;
+    const finalX = currentPos.x * scaleX;
+    const finalW = currentSize.width * scaleX;
+    const finalH = currentSize.height * scaleY;
+    const finalY = height - (currentPos.y * scaleY) - finalH;
 
-        // Limpeza de valores para garantir que sejam números puros (Float)
-        const finalX = (parseFloat(currentPos.x) * scaleX) || 0;
-        const finalWidth = (parseFloat(currentSize.width) * scaleX) || 100;
-        const finalHeight = (parseFloat(currentSize.height) * scaleY) || 100;
-        // No PDF a coordenada Y começa de baixo para cima
-        const finalY = pdfH - (parseFloat(currentPos.y) * scaleY) - finalHeight;
+    const form = pdfDoc.getForm();
+    const btn = form.createButton(`foto_${Date.now()}`);
+    
+    btn.addToPage(page, {
+        x: isNaN(finalX) ? 0 : finalX,
+        y: isNaN(finalY) ? 0 : finalY,
+        width: isNaN(finalW) ? 50 : finalW,
+        height: isNaN(finalH) ? 50 : finalH,
+        backgroundColor: rgb(0.9, 0.9, 0.9)
+    });
 
-        const form = pdfDoc.getForm();
-        const fieldName = "foto_editavel_" + Math.random().toString(36).substring(7);
-        const photoField = form.createButton(fieldName);
-
-        photoField.addToPage(page, {
-            x: finalX,
-            y: finalY,
-            width: finalWidth,
-            height: finalHeight,
-            backgroundColor: rgb(0.85, 0.85, 0.85)
-        });
-
-        const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = "PDF_Editavel_Pronto.pdf";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-    } catch (err) {
-        console.error(err);
-        alert("Erro ao gerar PDF: " + err.message);
-    }
+    const savedBytes = await pdfDoc.save();
+    const blob = new Blob([savedBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "pdf_editavel.pdf";
+    link.click();
 });
