@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Editável Pro 2026</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" crossorigin></script>
+    <script src="https://unpkg.com/interactjs/dist/interact.min.js" crossorigin></script>
 </head>
 <body>
     <div class="container">
-        <h1>Edator de PDF: Campo de Foto</h1>
+        <h1>Editor de PDF: Campo de Foto</h1>
         
         <div class="upload-section">
             <label><strong>1. Carregue seu PDF:</strong></label><br><br>
@@ -24,8 +24,7 @@
         </div>
 
         <div id="canvas-wrapper">
-            <object id="pdfPreview" type="application/pdf"></object>
-            
+            <iframe id="pdfPreview"></iframe>
             <div id="image-field" class="resize-drag">
                 <div class="image-content">ÁREA DA FOTO<br>(Clique p/ Inserir)</div>
             </div>
