@@ -1,5 +1,18 @@
-body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; margin: 0; }
-.container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+body { 
+    font-family: 'Segoe UI', sans-serif; 
+    background: #f4f7f6; 
+    padding: 20px; 
+    margin: 0; 
+}
+
+.container { 
+    max-width: 900px; 
+    margin: auto; 
+    background: white; 
+    padding: 30px; 
+    border-radius: 12px; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+}
 
 .upload-section { margin-bottom: 20px; }
 
@@ -11,6 +24,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid #ccc;
+    box-sizing: border-box; /* Protege o cálculo de largura real do JS */
 }
 
 #pdfPreview { 
@@ -18,7 +32,6 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     height: 100%; 
     border: none; 
     display: block;
-    /* Removido pointer-events fixo para permitir cálculo de renderização */
 }
 
 #image-field {
@@ -31,7 +44,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     border: 2px dashed #1e7e34;
     cursor: move;
     display: none;
-    z-index: 999; /* Aumentado para garantir sobreposição total */
+    z-index: 10;
     touch-action: none;
     box-sizing: border-box;
 }
