@@ -6,7 +6,7 @@ body {
 }
 
 .container { 
-    max-width: 910px; 
+    max-width: 900px; 
     margin: auto; 
     background: white; 
     padding: 30px; 
@@ -14,17 +14,15 @@ body {
     box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
 }
 
-.upload-section { margin-bottom: 20px; }
-
 #canvas-wrapper {
     position: relative;
     width: 100%;
-    height: 650px; /* Altura fixa para manter o layout estável */
+    height: 600px;
     background: #555;
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid #ccc;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Garante que a borda não altere o tamanho interno */
 }
 
 #pdfPreview { 
@@ -32,8 +30,7 @@ body {
     height: 100%; 
     border: none; 
     display: block;
-    /* pointer-events: none permite que você clique no quadro verde que está ATRÁS/DENTRO da área */
-    pointer-events: none; 
+    pointer-events: none; /* Permite arrastar o quadro verde sem interferência do PDF */
 }
 
 #image-field {
@@ -45,16 +42,15 @@ body {
     background: rgba(40, 167, 69, 0.5);
     border: 2px dashed #1e7e34;
     cursor: move;
-    display: none; /* Só aparece quando o PDF é carregado */
-    z-index: 1000; /* Garante que fique acima de tudo */
+    display: none;
+    z-index: 999;
     touch-action: none;
-    box-sizing: border-box;
 }
 
 .image-content {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: bold; color: white;
+    font-size: 11px; font-weight: bold; color: white;
     text-shadow: 1px 1px 2px #000;
     text-align: center;
     pointer-events: none;
@@ -63,7 +59,5 @@ body {
 button { 
     padding: 12px 24px; background: #28a745; color: white; border: none; 
     border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
-    transition: 0.3s; margin-bottom: 15px;
+    margin-bottom: 20px;
 }
-button:hover { background: #218838; transform: translateY(-2px); }
-.instruction { font-size: 0.9em; color: #666; margin: 10px 0; }
