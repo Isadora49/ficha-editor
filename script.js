@@ -1,107 +1,63 @@
-const pdfInput = document.getElementById('pdfInput');
-const processBtn = document.getElementById('processBtn');
-const preview = document.getElementById('pdfPreview');
-const imageField = document.getElementById('image-field');
+body { 
+    font-family: 'Segoe UI', sans-serif; 
+    background: #f4f7f6; 
+    padding: 20px; 
+    margin: 0; 
+}
 
-let currentPos = { x: 50, y: 50 };
-let currentSize = { width: 150, height: 150 };
+.container { 
+    max-width: 900px; 
+    margin: auto; 
+    background: white; 
+    padding: 30px; 
+    border-radius: 12px; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+}
 
-pdfInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const url = URL.createObjectURL(file);
-        preview.src = url;
-        imageField.style.display = 'block';
-        
-        // Reset de posição para evitar cálculos baseados em lixo de memória
-        currentPos = { x: 50, y: 50 };
-        currentSize = { width: 150, height: 150 };
-        imageField.style.transform = `translate(50px, 50px)`;
-        imageField.style.width = '150px';
-        imageField.style.height = '150px';
-    }
-});
+#canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    background: #555;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #ccc;
+    box-sizing: border-box; /* Garante que a borda não altere o tamanho interno */
+}
 
-interact('.resize-drag')
-    .resizable({
-        edges: { left: true, right: true, bottom: true, top: true },
-        listeners: {
-            move(event) {
-                let x = (parseFloat(currentPos.x) || 0) + event.deltaRect.left;
-                let y = (parseFloat(currentPos.y) || 0) + event.deltaRect.top;
+#pdfPreview { 
+    width: 100%; 
+    height: 100%; 
+    border: none; 
+    display: block;
+    pointer-events: none; /* Permite arrastar o quadro verde sem interferência do PDF */
+}
 
-                Object.assign(event.target.style, {
-                    width: `${event.rect.width}px`,
-                    height: `${event.rect.height}px`,
-                    transform: `translate(${x}px, ${y}px)`
-                });
+#image-field {
+    position: absolute;
+    top: 0; 
+    left: 0;
+    width: 150px;
+    height: 150px;
+    background: rgba(40, 167, 69, 0.5);
+    border: 2px dashed #1e7e34;
+    cursor: move;
+    display: none;
+    z-index: 999;
+    touch-action: none;
+}
 
-                currentPos = { x, y };
-                currentSize = { width: event.rect.width, height: event.rect.height };
-            }
-        }
-    })
-    .draggable({
-        listeners: {
-            move(event) {
-                currentPos.x = (parseFloat(currentPos.x) || 0) + event.dx;
-                currentPos.y = (parseFloat(currentPos.y) || 0) + event.dy;
-                event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
-            }
-        }
-    });
+.image-content {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: bold; color: white;
+    text-shadow: 1px 1px 2px #000;
+    text-align: center;
+    pointer-events: none;
+}
 
-processBtn.addEventListener('click', async () => {
-    if (!pdfInput.files[0]) {
-        alert("Selecione u PDF primeiro.");
-        return;
-    }
-
-    try {
-        const { PDFDocument, rgb } = window.PDFLib;
-        const fileBytes = await pdfInput.files[0].arrayBuffer();
-        const pdfDoc = await PDFDocument.load(fileBytes);
-        const page = pdfDoc.getPages()[0];
-        const { width: pdfW, height: pdfH } = page.getSize();
-
-        // CAPTURA DE MEDIDAS DA TELA
-        const rect = preview.getBoundingClientRect();
-        
-        // Proteção contra NaN: se o rect for 0, usamos a largura do wrapper
-        const viewW = rect.width || document.getElementById('canvas-wrapper').clientWidth;
-        const viewH = rect.height || document.getElementById('canvas-wrapper').clientHeight;
-
-        const scaleX = pdfW / viewW;
-        const scaleY = pdfH / viewH;
-
-        // Converter para números seguros e evitar NaN
-        const finalX = Number(currentPos.x * scaleX) || 0;
-        const finalWidth = Number(currentSize.width * scaleX) || 50;
-        const finalHeight = Number(currentSize.height * scaleY) || 50;
-        const finalY = Number(pdfH - (currentPos.y * scaleY) - finalHeight) || 0;
-
-        const form = pdfDoc.getForm();
-        // ID precisa ser string para não dar erro
-        const fieldID = "foto_" + Math.floor(Math.random() * 10000).toString();
-        const photoField = form.createButton(fieldID);
-
-        photoField.addToPage(page, {
-            x: finalX,
-            y: finalY,
-            width: finalWidth,
-            height: finalHeight,
-            backgroundColor: rgb(0.9, 0.9, 0.9) 
-        });
-
-        const pdfModified = await pdfDoc.save();
-        const blob = new Blob([pdfModified], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = "pdf_final_2026.pdf";
-        link.click();
-
-    } catch (err) {
-        console.error(err);
-        alert("Erro ao processar PDF: " + err.message);
-    }
-});
+button { 
+    padding: 12px 24px; background: #28a745; color: white; border: none; 
+    border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
+    margin-bottom: 20px;
+}
