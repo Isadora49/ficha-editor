@@ -25,8 +25,6 @@ body {
     overflow: hidden;
     border: 1px solid #ccc;
     box-sizing: border-box;
-    /* Impede que seleções acidentais travem o arraste */
-    user-select: none; 
 }
 
 #pdfPreview { 
@@ -34,7 +32,7 @@ body {
     height: 100%; 
     border: none; 
     display: block;
-    /* Crucial: impede que o iframe interaja com o mouse enquanto você arrasta o quadro */
+    /* pointer-events: none é essencial aqui para o interact.js funcionar no image-field */
     pointer-events: none; 
 }
 
@@ -48,7 +46,7 @@ body {
     border: 2px dashed #1e7e34;
     cursor: move;
     display: none;
-    z-index: 100; /* Aumentado para garantir prioridade sobre o iframe */
+    z-index: 9999; /* Garantir que fique acima de tudo */
     touch-action: none;
     box-sizing: border-box;
 }
