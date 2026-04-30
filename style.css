@@ -14,8 +14,6 @@ body {
     box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
 }
 
-.upload-section { margin-bottom: 20px; }
-
 #canvas-wrapper {
     position: relative;
     width: 100%;
@@ -24,7 +22,6 @@ body {
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid #ccc;
-    box-sizing: border-box; /* Essencial para o cálculo de X e Y */
 }
 
 #pdfPreview { 
@@ -32,6 +29,7 @@ body {
     height: 100%; 
     border: none; 
     display: block;
+    /* Impede que o iframe interfira no cálculo das coordenadas */
     pointer-events: none; 
 }
 
@@ -45,7 +43,7 @@ body {
     border: 2px dashed #1e7e34;
     cursor: move;
     display: none;
-    z-index: 9999;
+    z-index: 999;
     touch-action: none;
     box-sizing: border-box;
 }
@@ -62,7 +60,7 @@ body {
 button { 
     padding: 12px 24px; background: #28a745; color: white; border: none; 
     border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
-    transition: 0.3s; margin-bottom: 15px;
+    margin-bottom: 15px;
 }
-button:hover { background: #218838; transform: translateY(-2px); }
+
 .instruction { font-size: 0.9em; color: #666; margin: 10px 0; }
