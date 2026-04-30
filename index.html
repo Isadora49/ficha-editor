@@ -3,30 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editável Pro 2026</title>
+    <title>PDF Editor Pro 2026</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" crossorigin></script>
-    <script src="https://unpkg.com/interactjs/dist/interact.min.js" crossorigin></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Editor de PDF: Campo de Fot</h1>
-        
-        <div class="upload-section">
-            <label><strong>1. Carregue seu PDF:</strong></label><br><br>
-            <input type="file" id="pdfInput" accept=".pdf">
-        </div>
+        <h1>Editor de Campo de Foto</h1>
+        <input type="file" id="pdfInput" accept=".pdf">
+        <button id="processBtn">Baixar PDF com Campo</button>
 
-        <p class="instruction">Arraste e ajuste o tamanho do quadro verde sobre o local da foto.</p>
-
-        <div class="controls">
-            <button id="processBtn" type="button">Gerar PDF para Preencher</button>
-        </div>
-
-        <div id="canvas-wrapper">
-            <iframe id="pdfPreview"></iframe>
+        <div id="editor-container">
+            <canvas id="pdf-canvas"></canvas>
             <div id="image-field" class="resize-drag">
-                <div class="image-content">ÁREA DA FOTO<br>(Clique p/ Inserir)</div>
+                <span>ÁREA DA FOTO</span>
             </div>
         </div>
     </div>
