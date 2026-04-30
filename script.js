@@ -14,14 +14,13 @@ pdfInput.addEventListener('change', async (e) => {
         preview.src = url;
         imageField.style.display = 'block';
         
-        // Reset de posição
         currentPos = { x: 50, y: 50 };
         currentSize = { width: 150, height: 150 };
         imageField.style.transform = `translate(50px, 50px)`;
     }
 });
 
-// 2. Configuração do Arraste/Redimensionamento
+// 2. Configuração do Interact.js
 interact('.resize-drag')
     .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
@@ -51,7 +50,7 @@ interact('.resize-drag')
         }
     });
 
-// 3. Geração do PDF
+// 3. Geração do PDF (Corrigido para atualizações 2026)
 processBtn.addEventListener('click', async () => {
     if (!pdfInput.files[0]) {
         alert("Selecione um PDF primeiro.");
@@ -59,30 +58,36 @@ processBtn.addEventListener('click', async () => {
     }
 
     try {
-        const { PDFDocument, rgb } = window.PDFLib; // Acesso seguro
+        // Verificação robusta da biblioteca
+        const lib = window.PDFLib || PDFLib;
+        if (!lib) throw new Error("Biblioteca PDF-Lib não carregada.");
+
+        const { PDFDocument, rgb } = lib;
         const fileBytes = await pdfInput.files[0].arrayBuffer();
         const pdfDoc = await PDFDocument.load(fileBytes);
         
         const pages = pdfDoc.getPages();
+        if (pages.length === 0) throw new Error("O PDF não possui páginas.");
+        
         const firstPage = pages[0];
         const { width: pdfW, height: pdfH } = firstPage.getSize();
 
-        // Obtém o tamanho visual do iframe
+        // Cálculo de escala baseado no container real
         const rect = preview.getBoundingClientRect();
-        
-        // Fatores de Conversão (Pixels da tela -> Pontos do PDF)
+        if (rect.width === 0) throw new Error("Erro na renderização do preview.");
+
         const scaleX = pdfW / rect.width;
         const scaleY = pdfH / rect.height;
 
-        const finalX = currentPos.x * scaleX;
-        const finalWidth = currentSize.width * scaleX;
-        const finalHeight = currentSize.height * scaleY;
+        const finalX = (parseFloat(currentPos.x) || 0) * scaleX;
+        const finalWidth = (parseFloat(currentSize.width) || 0) * scaleX;
+        const finalHeight = (parseFloat(currentSize.height) || 0) * scaleY;
         
-        // IMPORTANTE: Inversão do eixo Y (PDF começa de baixo)
-        const finalY = pdfH - (currentPos.y * scaleY) - finalHeight;
+        // Inversão correta do eixo Y
+        const finalY = pdfH - ((parseFloat(currentPos.y) || 0) * scaleY) - finalHeight;
 
         const form = pdfDoc.getForm();
-        const fieldID = `foto_${Math.random().toString(36).substr(2, 5)}`;
+        const fieldID = `foto_${Math.floor(Math.random() * 10000)}`;
         const photoField = form.createButton(fieldID);
 
         photoField.addToPage(firstPage, {
@@ -92,18 +97,17 @@ processBtn.addEventListener('click', async () => {
             height: finalHeight
         });
 
-        // Estilização do campo para parecer clicável
         photoField.setBackgroundColor(rgb(0.9, 0.9, 0.9));
 
         const pdfModified = await pdfDoc.save();
         const blob = new Blob([pdfModified], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_editavel_final.pdf";
+        link.download = "documento_editavel_pro.pdf";
         link.click();
 
     } catch (err) {
         console.error("Erro interno:", err);
-        alert("Erro técnico: " + err.message);
+        alert("Erro ao processar PDF: " + err.message);
     }
 });
