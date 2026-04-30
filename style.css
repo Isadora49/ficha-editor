@@ -24,7 +24,9 @@ body {
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid #ccc;
-    box-sizing: border-box; /* Protege o cálculo de largura real do JS */
+    box-sizing: border-box;
+    /* Impede que seleções acidentais travem o arraste */
+    user-select: none; 
 }
 
 #pdfPreview { 
@@ -32,6 +34,8 @@ body {
     height: 100%; 
     border: none; 
     display: block;
+    /* Crucial: impede que o iframe interaja com o mouse enquanto você arrasta o quadro */
+    pointer-events: none; 
 }
 
 #image-field {
@@ -44,24 +48,45 @@ body {
     border: 2px dashed #1e7e34;
     cursor: move;
     display: none;
-    z-index: 10;
+    z-index: 100; /* Aumentado para garantir prioridade sobre o iframe */
     touch-action: none;
     box-sizing: border-box;
 }
 
 .image-content {
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: bold; color: white;
+    width: 100%; 
+    height: 100%;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 10px; 
+    font-weight: bold; 
+    color: white;
     text-shadow: 1px 1px 2px #000;
     text-align: center;
     pointer-events: none;
 }
 
 button { 
-    padding: 12px 24px; background: #28a745; color: white; border: none; 
-    border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
-    transition: 0.3s; margin-bottom: 15px;
+    padding: 12px 24px; 
+    background: #28a745; 
+    color: white; 
+    border: none; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-size: 16px; 
+    font-weight: bold;
+    transition: 0.3s; 
+    margin-bottom: 15px;
 }
-button:hover { background: #218838; transform: translateY(-2px); }
-.instruction { font-size: 0.9em; color: #666; margin: 10px 0; }
+
+button:hover { 
+    background: #218838; 
+    transform: translateY(-2px); 
+}
+
+.instruction { 
+    font-size: 0.9em; 
+    color: #666; 
+    margin: 10px 0; 
+}
