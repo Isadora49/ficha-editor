@@ -3,25 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor Pro 2026</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Editor PDF 2026 - Versão Única</title>
+    
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
+
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        
+        #editor-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+            background: #ccc;
+            border: 2px solid #999;
+            line-height: 0;
+            overflow: hidden;
+        }
+
+        #pdf-canvas { max-width: 100%; height: auto; }
+
+        #image-field {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            background: rgba(30, 255, 0, 0.45);
+            border: 2px dashed #006400;
+            display: none; /* Só aparece após carregar o PDF */
+            z-index: 10;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+            font-size: 12px;
+            box-sizing: border-box;
+            cursor: move;
+        }
+
+        .controls { margin-bottom: 20px; }
+        button { padding: 10px 20px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold; }
+        button:disabled { background: #ccc; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Edito de Campo de Foto</h1>
-        <input type="file" id="pdfInput" accept=".pdf">
-        <button id="processBtn">Baixar PDF com Campo</button>
 
-        <div id="editor-container">
+    <div class="container">
+        <h2>Adicionar Campo de Foto ao PDF</h2>
+        
+        <div class="controls">
+            <input type="file" id="pdfInput" accept=".pdf">
+            <button id="downloadBtn" disabled>Baixar PDF com Campo</button>
+        </div>
+
+        <div id="editor-wrapper">
             <canvas id="pdf-canvas"></canvas>
             <div id="image-field" class="resize-drag">
                 <span>ÁREA DA FOTO</span>
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+
+    <script>
+        // Configuração do PDF.js
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        const pdfInput = document.getElementById('pdfInput');
+        const canvas = document.getElementById('pdf-canvas');
+        const imageField = document.getElementById('image-field');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        let pdfBytes = null;
+        let currentPos = { x: 20, y: 20 };
+        let currentSize = { width: 120, height: 120 };
+
+        // 1. Carregar e Renderizar PDF
+        pdfInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            pdfBytes = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({data: pdfBytes});
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            
+            // Renderiza em alta qualidade (escala 1.5)
+            const viewport = page.getViewport({scale: 1.5});
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({canvasContext: context, viewport: viewport}).promise;
+            
+            // Ativa o editor
+            imageField.style.display = 'flex';
+            downloadBtn.disabled = false;
+        });
+
+        // 2. Lógica de Arrastar e Redimensionar (Interact.js)
+        interact('.resize-drag').draggable({
+            listeners: {
+                move(event) {
+                    currentPos.x += event.dx;
+                    currentPos.y += event.dy;
+                    event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
+                }
+            }
+        }).resizable({
+            edges: { left: true, right: true, bottom: true, top: true },
+            listeners: {
+                move(event) {
+                    currentSize.width = event.rect.width;
+                    currentSize.height = event.rect.height;
+                    currentPos.x += event.deltaRect.left;
+                    currentPos.y += event.deltaRect.top;
+
+                    Object.assign(event.target.style, {
+                        width: `${currentSize.width}px`,
+                        height: `${currentSize.height}px`,
+                        transform: `translate(${currentPos.x}px, ${currentPos.y}px)`
+                    });
+                }
+            }
+        });
+
+        // 3. Gerar PDF Final com PDF-LIB
+        downloadBtn.addEventListener('click', async () => {
+            if (!pdfBytes) return;
+
+            try {
+                const { PDFDocument, rgb } = PDFLib;
+                const pdfDoc = await PDFDocument.load(pdfBytes);
+                const page = pdfDoc.getPages()[0];
+                const { width, height } = page.getSize();
+
+                // Proporção entre o Canvas da tela e o tamanho real do PDF
+                const scaleX = width / canvas.width;
+                const scaleY = height / canvas.height;
+
+                // Proteção contra NaN usando valores numéricos seguros
+                const finalX = (currentPos.x * scaleX) || 0;
+                const finalW = (currentSize.width * scaleX) || 50;
+                const finalH = (currentSize.height * scaleY) || 50;
+                // No PDF a coordenada Y é invertida (baixo para cima)
+                const finalY = height - (currentPos.y * scaleY) - finalH;
+
+                const form = pdfDoc.getForm();
+                const fieldID = `foto_${Date.now()}`;
+                const photoField = form.createButton(fieldID);
+
+                photoField.addToPage(page, {
+                    x: finalX,
+                    y: finalY,
+                    width: finalW,
+                    height: finalH,
+                    backgroundColor: rgb(0.9, 0.9, 0.9)
+                });
+
+                const savedBytes = await pdfDoc.save();
+                const blob = new Blob([savedBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = "meu_pdf_preenchivel.pdf";
+                link.click();
+
+            } catch (err) {
+                alert("Erro ao processar o PDF: " + err.message);
+                console.error(err);
+            }
+        });
+    </script>
 </body>
 </html>
