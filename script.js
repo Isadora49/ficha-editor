@@ -3,11 +3,10 @@ const processBtn = document.getElementById('processBtn');
 const preview = document.getElementById('pdfPreview');
 const imageField = document.getElementById('image-field');
 
-// Estado global das posições
 let currentPos = { x: 50, y: 50 };
 let currentSize = { width: 150, height: 150 };
 
-// 1. Carregamento do PDF
+// 1. Carregar Preview
 pdfInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -15,25 +14,21 @@ pdfInput.addEventListener('change', async (e) => {
         preview.src = url;
         imageField.style.display = 'block';
         
-        // Resetar posição visual
+        // Reset de posição
         currentPos = { x: 50, y: 50 };
         currentSize = { width: 150, height: 150 };
         imageField.style.transform = `translate(50px, 50px)`;
-        imageField.style.width = '150px';
-        imageField.style.height = '150px';
     }
 });
 
-// 2. Configuração do InteractJS
+// 2. Configuração do Arraste/Redimensionamento
 interact('.resize-drag')
     .resizable({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
             move(event) {
-                let x = (parseFloat(currentPos.x) || 0);
-                let y = (parseFloat(currentPos.y) || 0);
-                x += event.deltaRect.left;
-                y += event.deltaRect.top;
+                let x = (parseFloat(currentPos.x) || 0) + event.deltaRect.left;
+                let y = (parseFloat(currentPos.y) || 0) + event.deltaRect.top;
 
                 Object.assign(event.target.style, {
                     width: `${event.rect.width}px`,
@@ -49,73 +44,66 @@ interact('.resize-drag')
     .draggable({
         listeners: {
             move(event) {
-                currentPos.x += event.dx;
-                currentPos.y += event.dy;
+                currentPos.x = (parseFloat(currentPos.x) || 0) + event.dx;
+                currentPos.y = (parseFloat(currentPos.y) || 0) + event.dy;
                 event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
             }
         }
     });
 
-// 3. Processamento Final
+// 3. Geração do PDF
 processBtn.addEventListener('click', async () => {
     if (!pdfInput.files[0]) {
-        alert("Por favor, selecione o PDF primeiro!");
+        alert("Selecione um PDF primeiro.");
         return;
     }
 
     try {
-        // Acessando a biblioteca de forma robusta para 2026
-        const { PDFDocument, rgb } = window.PDFLib;
+        const { PDFDocument, rgb } = window.PDFLib; // Acesso seguro
+        const fileBytes = await pdfInput.files[0].arrayBuffer();
+        const pdfDoc = await PDFDocument.load(fileBytes);
         
-        const file = pdfInput.files[0];
-        const pdfBytes = await file.arrayBuffer();
-        const pdfDoc = await PDFDocument.load(pdfBytes);
-        const form = pdfDoc.getForm();
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
         const { width: pdfW, height: pdfH } = firstPage.getSize();
 
-        // Cálculo de escala (Proteção contra divisões por zero)
+        // Obtém o tamanho visual do iframe
         const rect = preview.getBoundingClientRect();
-        const viewW = rect.width || 1; 
-        const viewH = rect.height || 1;
+        
+        // Fatores de Conversão (Pixels da tela -> Pontos do PDF)
+        const scaleX = pdfW / rect.width;
+        const scaleY = pdfH / rect.height;
 
-        const scaleX = pdfW / viewW;
-        const scaleY = pdfH / viewH;
-
-        // Converter coordenadas do navegador para coordenadas do PDF
         const finalX = currentPos.x * scaleX;
-        const finalW = currentSize.width * scaleX;
-        const finalH = currentSize.height * scaleY;
+        const finalWidth = currentSize.width * scaleX;
+        const finalHeight = currentSize.height * scaleY;
         
-        // Inversão do eixo Y (O PDF começa de baixo para cima)
-        const finalY = pdfH - (currentPos.y * scaleY) - finalH;
+        // IMPORTANTE: Inversão do eixo Y (PDF começa de baixo)
+        const finalY = pdfH - (currentPos.y * scaleY) - finalHeight;
 
-        // Criar o campo de botão (que funciona como campo de imagem)
-        const fieldName = "foto_" + Math.random().toString(36).substring(7);
-        const photoField = form.createButton(fieldName);
-        
+        const form = pdfDoc.getForm();
+        const fieldID = `foto_${Math.random().toString(36).substr(2, 5)}`;
+        const photoField = form.createButton(fieldID);
+
         photoField.addToPage(firstPage, {
             x: finalX,
             y: finalY,
-            width: finalW,
-            height: finalH,
+            width: finalWidth,
+            height: finalHeight
         });
 
-        // Estilização do campo editável
+        // Estilização do campo para parecer clicável
         photoField.setBackgroundColor(rgb(0.9, 0.9, 0.9));
 
-        const modifiedBytes = await pdfDoc.save();
-        
-        // Download do arquivo
-        const blob = new Blob([modifiedBytes], { type: 'application/pdf' });
+        const pdfModified = await pdfDoc.save();
+        const blob = new Blob([pdfModified], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_editavel_foto_2026.pdf";
+        link.download = "pdf_editavel_final.pdf";
         link.click();
 
     } catch (err) {
-        console.error("Erro técnico:", err);
-        alert("Erro ao processar PDF. Detalhes no console (F12).");
+        console.error("Erro interno:", err);
+        alert("Erro técnico: " + err.message);
     }
 });
