@@ -18,6 +18,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     height: 100%; 
     border: none; 
     display: block;
+    /* Removido pointer-events fixo para permitir cálculo de renderização */
 }
 
 #image-field {
@@ -26,11 +27,11 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     left: 0;
     width: 150px;
     height: 150px;
-    background: rgba(40, 167, 69, 0.5); /* Mais opaco para melhor visualização */
+    background: rgba(40, 167, 69, 0.5);
     border: 2px dashed #1e7e34;
     cursor: move;
     display: none;
-    z-index: 10;
+    z-index: 999; /* Aumentado para garantir sobreposição total */
     touch-action: none;
     box-sizing: border-box;
 }
@@ -41,7 +42,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     font-size: 10px; font-weight: bold; color: white;
     text-shadow: 1px 1px 2px #000;
     text-align: center;
-    pointer-events: none; /* Garante que o clique passe para o box pai */
+    pointer-events: none;
 }
 
 button { 
