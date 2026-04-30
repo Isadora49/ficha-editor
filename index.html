@@ -11,4 +11,186 @@
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        
+        #editor-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+            background: #555;
+            line-height: 0;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            border: 1px solid #000;
+        }
+
+        #pdf-canvas { max-width: 100%; height: auto; }
+
+        #image-field {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 120px;
+            height: 120px;
+            background: rgba(40, 167, 69, 0.5);
+            border: 2px dashed #0f3d1a;
+            display: none;
+            z-index: 10;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            text-shadow: 1px 1px 2px black;
+            box-sizing: border-box;
+            cursor: move;
+        }
+
+        .controls { margin-bottom: 25px; display: flex; justify-content: center; gap: 15px; }
+        button { padding: 12px 24px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Editor de Campo de Foto PDF</h2>
+        
+        <div class="controls">
+            <input type="file" id="pdfInput" accept=".pdf">
+            <button id="downloadBtn" disabled>Gerar e Baixar PDF</button>
+        </div>
+
+        <div id="editor-wrapper">
+            <canvas id="pdf-canvas"></canvas>
+            <div id="image-field" class="resize-drag">
+                <span>ÁREA DA FOTO</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        const pdfInput = document.getElementById('pdfInput');
+        const canvas = document.getElementById('pdf-canvas');
+        const imageField = document.getElementById('image-field');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        let globalPdfBytes = null;
+        let currentPos = { x: 0, y: 0 };
+        let currentSize = { width: 120, height: 120 };
+
+        // Função de segurança para garantir que nunca passaremos NaN para a biblioteca
+        const safeNum = (val) => {
+            const n = parseFloat(val);
+            return isNaN(n) ? 0 : n;
+        };
+
+        pdfInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const buffer = await file.arrayBuffer();
+            globalPdfBytes = buffer;
+
+            // Cópia para o renderizador
+            const pdfDataCopy = new Uint8Array(buffer.slice(0));
+            const loadingTask = pdfjsLib.getDocument({data: pdfDataCopy});
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            
+            const viewport = page.getViewport({scale: 1.5});
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({canvasContext: context, viewport: viewport}).promise;
+            
+            imageField.style.display = 'flex';
+            imageField.style.transform = 'translate(0px, 0px)';
+            currentPos = { x: 0, y: 0 };
+            currentSize = { width: 120, height: 120 };
+            imageField.style.width = '120px';
+            imageField.style.height = '120px';
+            downloadBtn.disabled = false;
+        });
+
+        interact('.resize-drag').draggable({
+            listeners: {
+                move(event) {
+                    currentPos.x = safeNum(currentPos.x) + event.dx;
+                    currentPos.y = safeNum(currentPos.y) + event.dy;
+                    event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
+                }
+            }
+        }).resizable({
+            edges: { left: true, right: true, bottom: true, top: true },
+            listeners: {
+                move(event) {
+                    currentSize.width = safeNum(event.rect.width);
+                    currentSize.height = safeNum(event.rect.height);
+                    currentPos.x = safeNum(currentPos.x) + event.deltaRect.left;
+                    currentPos.y = safeNum(currentPos.y) + event.deltaRect.top;
+
+                    Object.assign(event.target.style, {
+                        width: `${currentSize.width}px`,
+                        height: `${currentSize.height}px`,
+                        transform: `translate(${currentPos.x}px, ${currentPos.y}px)`
+                    });
+                }
+            }
+        });
+
+        downloadBtn.addEventListener('click', async () => {
+            if (!globalPdfBytes) return;
+
+            try {
+                const { PDFDocument, rgb } = PDFLib;
+                
+                // Usamos o buffer original preservado
+                const pdfDoc = await PDFDocument.load(globalPdfBytes.slice(0));
+                const page = pdfDoc.getPages()[0];
+                const { width, height } = page.getSize();
+
+                // Proporção segura entre tela e PDF real
+                const canvasW = safeNum(canvas.width) || 1;
+                const canvasH = safeNum(canvas.height) || 1;
+                const scaleX = width / canvasW;
+                const scaleY = height / canvasH;
+
+                // Cálculo com sanitização de NaN
+                const finalX = safeNum(currentPos.x * scaleX);
+                const finalW = safeNum(currentSize.width * scaleX);
+                const finalH = safeNum(currentSize.height * scaleY);
+                const finalY = height - safeNum(currentPos.y * scaleY) - finalH;
+
+                const form = pdfDoc.getForm();
+                const fieldID = `foto_${Date.now()}`;
+                const photoField = form.createButton(fieldID);
+
+                photoField.addToPage(page, {
+                    x: finalX,
+                    y: finalY,
+                    width: Math.max(1, finalW), // Garante largura mínima de 1
+                    height: Math.max(1, finalH), // Garante altura mínima de 1
+                    backgroundColor: rgb(0.95, 0.95, 0.95)
+                });
+
+                const savedBytes = await pdfDoc.save();
+                const blob = new Blob([savedBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = "projeto_editavel.pdf";
+                link.click();
+
+            } catch (err) {
+                alert("Erro técnico: " + err.message);
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
