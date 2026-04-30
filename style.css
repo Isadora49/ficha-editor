@@ -1,46 +1,35 @@
-body { 
-    font-family: 'Segoe UI', sans-serif; 
-    background: #f4f7f6; 
-    padding: 20px; 
-    margin: 0; 
-}
+body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; margin: 0; }
 
-.container { 
-    max-width: 900px; 
-    margin: auto; 
-    background: white; 
-    padding: 30px; 
-    border-radius: 12px; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
-}
+.container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 
 #canvas-wrapper {
     position: relative;
     width: 100%;
-    height: 700px; /* Aumentado para melhor visualização */
-    background: #e9ecef;
+    height: 600px;
+    background: #e9ecef; /* Fundo cinza claro caso o PDF suma */
     border-radius: 8px;
     overflow: hidden;
-    border: 2px solid #dee2e6;
+    border: 2px solid #ddd;
 }
 
 #pdfPreview { 
     width: 100%; 
     height: 100%; 
-    pointer-events: none; /* Crucial para o interact.js funcionar */
+    border: none; 
+    pointer-events: none; /* Deixa o clique passar para o quadro verde */
 }
 
 #image-field {
     position: absolute;
-    top: 20px; 
-    left: 20px;
+    top: 50px; 
+    left: 50px;
     width: 150px;
     height: 150px;
-    background: rgba(40, 167, 69, 0.4);
-    border: 2px dashed #1e7e34;
+    background: rgba(40, 167, 69, 0.6);
+    border: 2px dashed #145521;
     cursor: move;
     display: none;
-    z-index: 100;
+    z-index: 10;
     touch-action: none;
     box-sizing: border-box;
 }
@@ -48,9 +37,8 @@ body {
 .image-content {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: bold; color: white;
-    text-shadow: 1px 1px 2px #000;
-    text-align: center;
+    font-size: 11px; font-weight: bold; color: white;
+    text-shadow: 1px 1px 2px #000; text-align: center;
 }
 
 button { 
@@ -58,3 +46,4 @@ button {
     border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
     margin-bottom: 20px;
 }
+button:hover { background: #218838; }
