@@ -1,63 +1,97 @@
-body { 
-    font-family: 'Segoe UI', sans-serif; 
-    background: #f4f7f6; 
-    padding: 20px; 
-    margin: 0; 
-}
+const pdfInput = document.getElementById('pdfInput');
+const processBtn = document.getElementById('processBtn');
+const preview = document.getElementById('pdfPreview');
+const imageField = document.getElementById('image-field');
 
-.container { 
-    max-width: 900px; 
-    margin: auto; 
-    background: white; 
-    padding: 30px; 
-    border-radius: 12px; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
-}
+let currentPos = { x: 20, y: 20 };
+let currentSize = { width: 150, height: 150 };
 
-#canvas-wrapper {
-    position: relative;
-    width: 100%;
-    height: 600px;
-    background: #555;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #ccc;
-    box-sizing: border-box; /* Garante que a borda não altere o tamanho interno */
-}
+pdfInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const url = URL.createObjectURL(file);
+        preview.data = url; // Para elemento <object>, usamos .data
+        imageField.style.display = 'block';
+        
+        // Reset visual
+        currentPos = { x: 20, y: 20 };
+        imageField.style.transform = `translate(20px, 20px)`;
+    }
+});
 
-#pdfPreview { 
-    width: 100%; 
-    height: 100%; 
-    border: none; 
-    display: block;
-    pointer-events: none; /* Permite arrastar o quadro verde sem interferência do PDF */
-}
+interact('.resize-drag').resizable({
+    edges: { left: true, right: true, bottom: true, top: true },
+    listeners: {
+        move(event) {
+            let x = (parseFloat(currentPos.x) || 0) + event.deltaRect.left;
+            let y = (parseFloat(currentPos.y) || 0) + event.deltaRect.top;
+            Object.assign(event.target.style, {
+                width: `${event.rect.width}px`,
+                height: `${event.rect.height}px`,
+                transform: `translate(${x}px, ${y}px)`
+            });
+            currentPos = { x, y };
+            currentSize = { width: event.rect.width, height: event.rect.height };
+        }
+    }
+}).draggable({
+    listeners: {
+        move(event) {
+            currentPos.x = (parseFloat(currentPos.x) || 0) + event.dx;
+            currentPos.y = (parseFloat(currentPos.y) || 0) + event.dy;
+            event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
+        }
+    }
+});
 
-#image-field {
-    position: absolute;
-    top: 0; 
-    left: 0;
-    width: 150px;
-    height: 150px;
-    background: rgba(40, 167, 69, 0.5);
-    border: 2px dashed #1e7e34;
-    cursor: move;
-    display: none;
-    z-index: 999;
-    touch-action: none;
-}
+processBtn.addEventListener('click', async () => {
+    if (!pdfInput.files[0]) return alert("Selecione um PDF.");
 
-.image-content {
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: bold; color: white;
-    text-shadow: 1px 1px 2px #000;
-    text-align: center;
-    pointer-events: none;
-}
+    try {
+        const { PDFDocument, rgb } = PDFLib;
+        const fileBytes = await pdfInput.files[0].arrayBuffer();
+        const pdfDoc = await PDFDocument.load(fileBytes);
+        const page = pdfDoc.getPages()[0];
+        const { width: pdfW, height: pdfH } = page.getSize();
 
-button { 
-    padding: 12px 24px; background: #28a745; color: white; border: none; 
-    border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
-    margin-bottom: 20px;
-}
+        const rect = preview.getBoundingClientRect();
+        
+        // CORREÇÃO PARA A IMAGEM DA CARINHA TRISTE (Evita NaN)
+        // Se a largura for 0 (bloqueado), usa o tamanho do container pai
+        const viewW = rect.width || document.getElementById('canvas-wrapper').offsetWidth || 800;
+        const viewH = rect.height || document.getElementById('canvas-wrapper').offsetHeight || 700;
+
+        const scaleX = pdfW / viewW;
+        const scaleY = pdfH / viewH;
+
+        // Garantir que todos os valores sejam números reais (trava anti-NaN)
+        const check = (val) => isNaN(val) ? 0 : val;
+
+        const fX = check(currentPos.x * scaleX);
+        const fW = check(currentSize.width * scaleX);
+        const fH = check(currentSize.height * scaleY);
+        const fY = check(pdfH - (currentPos.y * scaleY) - fH);
+
+        const form = pdfDoc.getForm();
+        const fieldID = "foto_campo_" + Math.floor(Math.random() * 1000).toString();
+        const photoField = form.createButton(fieldID);
+
+        photoField.addToPage(page, {
+            x: fX,
+            y: fY,
+            width: fW,
+            height: fH,
+            backgroundColor: rgb(0.95, 0.95, 0.95)
+        });
+
+        const pdfModified = await pdfDoc.save();
+        const blob = new Blob([pdfModified], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = "pdf_editavel.pdf";
+        link.click();
+
+    } catch (err) {
+        alert("Erro ao processar: " + err.message);
+    }
+});
