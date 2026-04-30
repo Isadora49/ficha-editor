@@ -11,19 +11,15 @@ body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; 
     overflow: hidden;
 }
 
-#pdfPreview { 
-    width: 100%; 
-    height: 100%; 
-    border: none;
-}
+#pdfPreview { width: 100%; height: 100%; border: none; }
 
 #image-field {
     position: absolute;
     top: 0; left: 0;
     width: 150px;
     height: 150px;
-    min-width: 20px;
-    min-height: 20px;
+    min-width: 20px; /* Proteção */
+    min-height: 20px; /* Proteção */
     background: rgba(40, 167, 69, 0.4);
     border: 2px solid #28a745;
     cursor: move;
