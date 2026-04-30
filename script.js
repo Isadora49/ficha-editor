@@ -13,10 +13,12 @@ pdfInput.addEventListener('change', async (e) => {
         preview.src = url;
         imageField.style.display = 'block';
         
-        // Reset inicial seguro
+        // Reset de posição para evitar cálculos baseados em lixo de memória
         currentPos = { x: 50, y: 50 };
         currentSize = { width: 150, height: 150 };
         imageField.style.transform = `translate(50px, 50px)`;
+        imageField.style.width = '150px';
+        imageField.style.height = '150px';
     }
 });
 
@@ -50,51 +52,56 @@ interact('.resize-drag')
     });
 
 processBtn.addEventListener('click', async () => {
-    if (!pdfInput.files[0]) return alert("Selecione um PDF.");
+    if (!pdfInput.files[0]) {
+        alert("Selecione um PDF primeiro.");
+        return;
+    }
 
     try {
-        const { PDFDocument, rgb } = PDFLib;
+        const { PDFDocument, rgb } = window.PDFLib;
         const fileBytes = await pdfInput.files[0].arrayBuffer();
         const pdfDoc = await PDFDocument.load(fileBytes);
         const page = pdfDoc.getPages()[0];
         const { width: pdfW, height: pdfH } = page.getSize();
 
-        // SEGURANÇA CONTRA NaN:
+        // CAPTURA DE MEDIDAS DA TELA
         const rect = preview.getBoundingClientRect();
-        if (!rect.width || rect.width === 0) {
-            throw new Error("O preview do PDF ainda não carregou na tela.");
-        }
+        
+        // Proteção contra NaN: se o rect for 0, usamos a largura do wrapper
+        const viewW = rect.width || document.getElementById('canvas-wrapper').clientWidth;
+        const viewH = rect.height || document.getElementById('canvas-wrapper').clientHeight;
 
-        // Fórmulas de escala convertendo pixels para pontos PDF
-        const scaleX = pdfW / rect.width;
-        const scaleY = pdfH / rect.height;
+        const scaleX = pdfW / viewW;
+        const scaleY = pdfH / viewH;
 
+        // Converter para números seguros e evitar NaN
         const finalX = Number(currentPos.x * scaleX) || 0;
-        const finalWidth = Number(currentSize.width * scaleX) || 100;
-        const finalHeight = Number(currentSize.height * scaleY) || 100;
+        const finalWidth = Number(currentSize.width * scaleX) || 50;
+        const finalHeight = Number(currentSize.height * scaleY) || 50;
         const finalY = Number(pdfH - (currentPos.y * scaleY) - finalHeight) || 0;
 
         const form = pdfDoc.getForm();
-        const fieldName = `foto_${Date.now()}`;
-        const photoField = form.createButton(fieldName);
+        // ID precisa ser string para não dar erro
+        const fieldID = "foto_" + Math.floor(Math.random() * 10000).toString();
+        const photoField = form.createButton(fieldID);
 
         photoField.addToPage(page, {
             x: finalX,
             y: finalY,
             width: finalWidth,
             height: finalHeight,
-            backgroundColor: rgb(0.9, 0.9, 0.9)
+            backgroundColor: rgb(0.9, 0.9, 0.9) 
         });
 
-        const pdfBytes = await pdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const pdfModified = await pdfDoc.save();
+        const blob = new Blob([pdfModified], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_preenchivel.pdf";
+        link.download = "pdf_final_2026.pdf";
         link.click();
 
     } catch (err) {
         console.error(err);
-        alert("Erro: " + err.message);
+        alert("Erro ao processar PDF: " + err.message);
     }
 });
