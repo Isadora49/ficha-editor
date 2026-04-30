@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor PDF 2026 - Versão Única</title>
+    <title>Editor PDF 2026 - Versão Única (Corrigida)</title>
     
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -33,7 +33,7 @@
             height: 120px;
             background: rgba(30, 255, 0, 0.45);
             border: 2px dashed #006400;
-            display: none; /* Só aparece após carregar o PDF */
+            display: none;
             z-index: 10;
             touch-action: none;
             display: flex;
@@ -47,8 +47,9 @@
         }
 
         .controls { margin-bottom: 20px; }
-        button { padding: 10px 20px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        button:disabled { background: #ccc; }
+        button { padding: 10px 20px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #218838; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -70,7 +71,6 @@
     </div>
 
     <script>
-        // Configuração do PDF.js
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
@@ -83,17 +83,20 @@
         let currentPos = { x: 20, y: 20 };
         let currentSize = { width: 120, height: 120 };
 
-        // 1. Carregar e Renderizar PDF
         pdfInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
+            // Armazena os bytes originais
             pdfBytes = await file.arrayBuffer();
-            const loadingTask = pdfjsLib.getDocument({data: pdfBytes});
+
+            // CRÍTICO: Criamos uma cópia do buffer (slice) para o PDF.js não "roubar" os dados originais
+            const bytesForPreview = pdfBytes.slice(0);
+            
+            const loadingTask = pdfjsLib.getDocument({data: bytesForPreview});
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
             
-            // Renderiza em alta qualidade (escala 1.5)
             const viewport = page.getViewport({scale: 1.5});
             const context = canvas.getContext('2d');
             canvas.width = viewport.width;
@@ -101,12 +104,10 @@
 
             await page.render({canvasContext: context, viewport: viewport}).promise;
             
-            // Ativa o editor
             imageField.style.display = 'flex';
             downloadBtn.disabled = false;
         });
 
-        // 2. Lógica de Arrastar e Redimensionar (Interact.js)
         interact('.resize-drag').draggable({
             listeners: {
                 move(event) {
@@ -133,51 +134,18 @@
             }
         });
 
-        // 3. Gerar PDF Final com PDF-LIB
         downloadBtn.addEventListener('click', async () => {
             if (!pdfBytes) return;
 
             try {
                 const { PDFDocument, rgb } = PDFLib;
+                
+                // Usamos os bytes originais (que não foram desvinculados)
                 const pdfDoc = await PDFDocument.load(pdfBytes);
                 const page = pdfDoc.getPages()[0];
                 const { width, height } = page.getSize();
 
-                // Proporção entre o Canvas da tela e o tamanho real do PDF
                 const scaleX = width / canvas.width;
                 const scaleY = height / canvas.height;
 
-                // Proteção contra NaN usando valores numéricos seguros
-                const finalX = (currentPos.x * scaleX) || 0;
-                const finalW = (currentSize.width * scaleX) || 50;
-                const finalH = (currentSize.height * scaleY) || 50;
-                // No PDF a coordenada Y é invertida (baixo para cima)
-                const finalY = height - (currentPos.y * scaleY) - finalH;
-
-                const form = pdfDoc.getForm();
-                const fieldID = `foto_${Date.now()}`;
-                const photoField = form.createButton(fieldID);
-
-                photoField.addToPage(page, {
-                    x: finalX,
-                    y: finalY,
-                    width: finalW,
-                    height: finalH,
-                    backgroundColor: rgb(0.9, 0.9, 0.9)
-                });
-
-                const savedBytes = await pdfDoc.save();
-                const blob = new Blob([savedBytes], { type: 'application/pdf' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = "meu_pdf_preenchivel.pdf";
-                link.click();
-
-            } catch (err) {
-                alert("Erro ao processar o PDF: " + err.message);
-                console.error(err);
-            }
-        });
-    </script>
-</body>
-</html>
+                const finalX = (currentPos.x * scaleX) || 0
