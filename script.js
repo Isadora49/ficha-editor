@@ -2,20 +2,23 @@ const pdfInput = document.getElementById('pdfInput');
 const processBtn = document.getElementById('processBtn');
 const preview = document.getElementById('pdfPreview');
 const imageField = document.getElementById('image-field');
+const wrapper = document.getElementById('canvas-wrapper');
 
-let currentPos = { x: 20, y: 20 };
+let currentPos = { x: 50, y: 50 };
 let currentSize = { width: 150, height: 150 };
 
 pdfInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (file) {
         const url = URL.createObjectURL(file);
-        preview.data = url; // Para elemento <object>, usamos .data
+        preview.src = url;
         imageField.style.display = 'block';
-        
         // Reset visual
-        currentPos = { x: 20, y: 20 };
-        imageField.style.transform = `translate(20px, 20px)`;
+        currentPos = { x: 50, y: 50 };
+        currentSize = { width: 150, height: 150 };
+        imageField.style.transform = `translate(50px, 50px)`;
+        imageField.style.width = '150px';
+        imageField.style.height = '150px';
     }
 });
 
@@ -45,7 +48,7 @@ interact('.resize-drag').resizable({
 });
 
 processBtn.addEventListener('click', async () => {
-    if (!pdfInput.files[0]) return alert("Selecione um PDF.");
+    if (!pdfInput.files[0]) return alert("Por favor, carregue o PDF primeiro.");
 
     try {
         const { PDFDocument, rgb } = PDFLib;
@@ -54,44 +57,44 @@ processBtn.addEventListener('click', async () => {
         const page = pdfDoc.getPages()[0];
         const { width: pdfW, height: pdfH } = page.getSize();
 
-        const rect = preview.getBoundingClientRect();
-        
-        // CORREÇÃO PARA A IMAGEM DA CARINHA TRISTE (Evita NaN)
-        // Se a largura for 0 (bloqueado), usa o tamanho do container pai
-        const viewW = rect.width || document.getElementById('canvas-wrapper').offsetWidth || 800;
-        const viewH = rect.height || document.getElementById('canvas-wrapper').offsetHeight || 700;
+        // SEGURANÇA: Usamos o tamanho do WRAPPER (container) para o cálculo
+        // Isso evita o erro de NaN se o iframe estiver com erro ou carinha triste.
+        const viewW = wrapper.offsetWidth;
+        const viewH = wrapper.offsetHeight;
 
         const scaleX = pdfW / viewW;
         const scaleY = pdfH / viewH;
 
-        // Garantir que todos os valores sejam números reais (trava anti-NaN)
-        const check = (val) => isNaN(val) ? 0 : val;
-
-        const fX = check(currentPos.x * scaleX);
-        const fW = check(currentSize.width * scaleX);
-        const fH = check(currentSize.height * scaleY);
-        const fY = check(pdfH - (currentPos.y * scaleY) - fH);
+        // Limpeza de valores para garantir que sejam números puros (Float)
+        const finalX = (parseFloat(currentPos.x) * scaleX) || 0;
+        const finalWidth = (parseFloat(currentSize.width) * scaleX) || 100;
+        const finalHeight = (parseFloat(currentSize.height) * scaleY) || 100;
+        // No PDF a coordenada Y começa de baixo para cima
+        const finalY = pdfH - (parseFloat(currentPos.y) * scaleY) - finalHeight;
 
         const form = pdfDoc.getForm();
-        const fieldID = "foto_campo_" + Math.floor(Math.random() * 1000).toString();
-        const photoField = form.createButton(fieldID);
+        const fieldName = "foto_editavel_" + Math.random().toString(36).substring(7);
+        const photoField = form.createButton(fieldName);
 
         photoField.addToPage(page, {
-            x: fX,
-            y: fY,
-            width: fW,
-            height: fH,
-            backgroundColor: rgb(0.95, 0.95, 0.95)
+            x: finalX,
+            y: finalY,
+            width: finalWidth,
+            height: finalHeight,
+            backgroundColor: rgb(0.85, 0.85, 0.85)
         });
 
-        const pdfModified = await pdfDoc.save();
-        const blob = new Blob([pdfModified], { type: 'application/pdf' });
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "pdf_editavel.pdf";
+        link.download = "PDF_Editavel_Pronto.pdf";
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
 
     } catch (err) {
-        alert("Erro ao processar: " + err.message);
+        console.error(err);
+        alert("Erro ao gerar PDF: " + err.message);
     }
 });
