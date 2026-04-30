@@ -30,7 +30,6 @@ interact('.resize-drag')
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
             move(event) {
-                // Força a conversão para número para evitar NaN
                 let x = (parseFloat(currentPos.x) || 0);
                 let y = (parseFloat(currentPos.y) || 0);
 
@@ -86,38 +85,42 @@ processBtn.addEventListener('click', async () => {
         const fX = pdfW / wWidth;
         const fY = pdfH / wHeight;
 
-        // --- CORREÇÃO CRÍTICA: Sanitização total para evitar NaN ---
         const safeX = Number(parseFloat(currentPos.x) * fX) || 0;
         const safeW = Number(parseFloat(currentSize.width) * fX) || 100;
         const safeH = Number(parseFloat(currentSize.height) * fY) || 100;
         
-        // No PDF o Y é de baixo para cima, calculamos o topo menos a posição e altura
+        // No PDF o Y é de baixo para cima
         const safeY = Number(pdfH - (parseFloat(currentPos.y) * fY) - safeH) || 0;
 
-        // Criar nome único para o campo (String obrigatória)
-        const fieldID = "img_edit_" + Math.random().toString(36).substr(2, 9);
+        // Atualização 2026: Usando substring em vez de substr (depreciado)
+        const fieldID = "img_edit_" + Math.random().toString(36).substring(2, 11);
         
         const button = form.createButton(fieldID);
         
-        // Adicionar à página com valores garantidos como números
+        // CORREÇÃO: A cor de fundo vai DENTRO das opções do addToPage
         button.addToPage(firstPage, {
             x: safeX,
             y: safeY,
             width: safeW,
             height: safeH,
+            backgroundColor: rgb(0.9, 0.9, 0.9) // <--- Cor de fundo definida aqui
         });
-
-        button.setBackgroundColor(rgb(0.9, 0.9, 0.9));
 
         // Gerar e baixar
         const modifiedBytes = await pdfDoc.save();
         const blob = new Blob([modifiedBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
+        
+        const fileUrl = URL.createObjectURL(blob);
+        link.href = fileUrl;
         link.download = "documento_editavel_2026.pdf";
         link.click();
+        
+        // Limpa a memória após o download
+        setTimeout(() => URL.revokeObjectURL(fileUrl), 100);
 
     } catch (err) {
+        // Exibimos o erro no console para caso de outras falhas não ficarmos às cegas
         console.error("Erro no processamento:", err);
         alert("Erro ao processar PDF: Certifique-se de que o arquivo é um PDF válido.");
     }
