@@ -53,7 +53,7 @@ interact('.resize-drag')
 
 processBtn.addEventListener('click', async () => {
     if (!pdfInput.files[0]) {
-        alert("Selecione um PDF primeiro.");
+        alert("Selecione u PDF primeiro.");
         return;
     }
 
