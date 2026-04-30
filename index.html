@@ -3,68 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor PDF 2026 - Versão Final Estável</title>
+    <title>PDF Editor 2026 - Ultimate Stable</title>
     
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        :root { --primary: #2563eb; --success: #16a34a; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; padding: 20px; color: #1e293b; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .controls { display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem; align-items: center; }
         
         #editor-wrapper {
             position: relative;
             display: inline-block;
-            margin-top: 20px;
-            background: #555;
+            background: #cbd5e1;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 2px solid #94a3b8;
             line-height: 0;
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
-            border: 1px solid #000;
         }
 
         #pdf-canvas { max-width: 100%; height: auto; }
 
         #image-field {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 120px;
-            height: 120px;
-            background: rgba(40, 167, 69, 0.5);
-            border: 2px dashed #0f3d1a;
+            top: 0; left: 0;
+            width: 150px; height: 150px;
+            background: rgba(22, 163, 74, 0.4);
+            border: 2px solid #16a34a;
             display: none;
-            z-index: 10;
+            z-index: 50;
             touch-action: none;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 11px;
-            text-shadow: 1px 1px 2px black;
-            box-sizing: border-box;
             cursor: move;
+            box-sizing: border-box;
         }
 
-        .controls { margin-bottom: 25px; display: flex; justify-content: center; gap: 15px; }
-        button { padding: 12px 24px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #image-field span {
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            pointer-events: none;
+        }
+
+        button { 
+            padding: 0.75rem 1.5rem; 
+            background: var(--success); 
+            color: white; 
+            border: none; 
+            border-radius: 0.5rem; 
+            font-weight: 600; 
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Editor de Campo de Foto PDF</h2>
+        <h2 style="margin-top:0">Editor de Campo de Foto</h2>
         
         <div class="controls">
-            <input type="file" id="pdfInput" accept=".pdf">
-            <button id="downloadBtn" disabled>Gerar e Baixar PDF</button>
+            <input type="file" id="pdfInput" accept="application/pdf">
+            <button id="downloadBtn" disabled>Baixar PDF Editável</button>
         </div>
 
         <div id="editor-wrapper">
             <canvas id="pdf-canvas"></canvas>
-            <div id="image-field" class="resize-drag">
+            <div id="image-field">
                 <span>ÁREA DA FOTO</span>
             </div>
         </div>
@@ -80,15 +93,12 @@
         const downloadBtn = document.getElementById('downloadBtn');
         
         let globalPdfBytes = null;
-        let currentPos = { x: 0, y: 0 };
-        let currentSize = { width: 120, height: 120 };
+        let xPos = 0;
+        let yPos = 0;
+        let widthDim = 150;
+        let heightDim = 150;
 
-        // Função de segurança para garantir que nunca passaremos NaN para a biblioteca
-        const safeNum = (val) => {
-            const n = parseFloat(val);
-            return isNaN(n) ? 0 : n;
-        };
-
+        // Renderizador de PDF
         pdfInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -96,9 +106,7 @@
             const buffer = await file.arrayBuffer();
             globalPdfBytes = buffer;
 
-            // Cópia para o renderizador
-            const pdfDataCopy = new Uint8Array(buffer.slice(0));
-            const loadingTask = pdfjsLib.getDocument({data: pdfDataCopy});
+            const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(buffer.slice(0))});
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
             
@@ -109,86 +117,102 @@
 
             await page.render({canvasContext: context, viewport: viewport}).promise;
             
+            // Reset do Campo
             imageField.style.display = 'flex';
+            imageField.style.width = '150px';
+            imageField.style.height = '150px';
             imageField.style.transform = 'translate(0px, 0px)';
-            currentPos = { x: 0, y: 0 };
-            currentSize = { width: 120, height: 120 };
-            imageField.style.width = '120px';
-            imageField.style.height = '120px';
+            xPos = 0; yPos = 0; widthDim = 150; heightDim = 150;
+            
             downloadBtn.disabled = false;
         });
 
-        interact('.resize-drag').draggable({
+        // Controle de Arrastar/Redimensionar
+        interact('#image-field').draggable({
             listeners: {
                 move(event) {
-                    currentPos.x = safeNum(currentPos.x) + event.dx;
-                    currentPos.y = safeNum(currentPos.y) + event.dy;
-                    event.target.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px)`;
+                    xPos += event.dx;
+                    yPos += event.dy;
+                    event.target.style.transform = `translate(${xPos}px, ${yPos}px)`;
                 }
             }
         }).resizable({
             edges: { left: true, right: true, bottom: true, top: true },
             listeners: {
                 move(event) {
-                    currentSize.width = safeNum(event.rect.width);
-                    currentSize.height = safeNum(event.rect.height);
-                    currentPos.x = safeNum(currentPos.x) + event.deltaRect.left;
-                    currentPos.y = safeNum(currentPos.y) + event.deltaRect.top;
+                    widthDim = event.rect.width;
+                    heightDim = event.rect.height;
+                    xPos += event.deltaRect.left;
+                    yPos += event.deltaRect.top;
 
                     Object.assign(event.target.style, {
-                        width: `${currentSize.width}px`,
-                        height: `${currentSize.height}px`,
-                        transform: `translate(${currentPos.x}px, ${currentPos.y}px)`
+                        width: `${widthDim}px`,
+                        height: `${heightDim}px`,
+                        transform: `translate(${xPos}px, ${yPos}px)`
                     });
                 }
             }
         });
 
+        // Função de Download (A mais crítica)
         downloadBtn.addEventListener('click', async () => {
             if (!globalPdfBytes) return;
 
             try {
                 const { PDFDocument, rgb } = PDFLib;
                 
-                // Usamos o buffer original preservado
+                // 1. Carregamento seguro
                 const pdfDoc = await PDFDocument.load(globalPdfBytes.slice(0));
                 const page = pdfDoc.getPages()[0];
-                const { width, height } = page.getSize();
+                const { width: pdfW, height: pdfH } = page.getSize();
 
-                // Proporção segura entre tela e PDF real
-                const canvasW = safeNum(canvas.width) || 1;
-                const canvasH = safeNum(canvas.height) || 1;
-                const scaleX = width / canvasW;
-                const scaleY = height / canvasH;
+                // 2. Validação de dimensões do canvas para evitar divisão por zero/NaN
+                const cW = canvas.width || 1;
+                const cH = canvas.height || 1;
 
-                // Cálculo com sanitização de NaN
-                const finalX = safeNum(currentPos.x * scaleX);
-                const finalW = safeNum(currentSize.width * scaleX);
-                const finalH = safeNum(currentSize.height * scaleY);
-                const finalY = height - safeNum(currentPos.y * scaleY) - finalH;
+                // 3. Cálculo de escala com arredondamento forçado
+                const scaleX = pdfW / cW;
+                const scaleY = pdfH / cH;
 
+                const fX = Math.round(xPos * scaleX);
+                const fW = Math.round(widthDim * scaleX);
+                const fH = Math.round(heightDim * scaleY);
+                // Inversão Y: PDF (0,0) é canto inferior esquerdo
+                const fY = Math.round(pdfH - (yPos * scaleY) - fH);
+
+                // 4. Criação do Formulário com Nomes Sanitizados
                 const form = pdfDoc.getForm();
-                const fieldID = `foto_${Date.now()}`;
-                const photoField = form.createButton(fieldID);
+                // O ID DEVE SER STRING PURA
+                const timestamp = new Date().getTime().toString();
+                const fieldName = "PhotoField_" + timestamp;
 
-                photoField.addToPage(page, {
-                    x: finalX,
-                    y: finalY,
-                    width: Math.max(1, finalW), // Garante largura mínima de 1
-                    height: Math.max(1, finalH), // Garante altura mínima de 1
-                    backgroundColor: rgb(0.95, 0.95, 0.95)
+                const button = form.createButton(fieldName);
+                
+                // 5. Adicionar à página garantindo tipos primitivos (Number)
+                button.addToPage(page, {
+                    x: Number(fX),
+                    y: Number(fY),
+                    width: Number(Math.max(10, fW)),
+                    height: Number(Math.max(10, fH)),
+                    backgroundColor: rgb(0.9, 0.9, 0.9)
                 });
 
-                const savedBytes = await pdfDoc.save();
-                const blob = new Blob([savedBytes], { type: 'application/pdf' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = "projeto_editavel.pdf";
-                link.click();
+                // 6. Salvar e disparar download
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `documento_editavel_${timestamp}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
 
             } catch (err) {
-                alert("Erro técnico: " + err.message);
-                console.error(err);
+                console.error("Erro detalhado:", err);
+                alert("Erro ao processar: " + err.message);
             }
         });
     </script>
