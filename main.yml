@@ -1,0 +1,22 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Força o uso do Node 24 conforme a orientação do GitHub para 2026
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # Já está na v4, suporte ok para Node 24
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3 # Versão atualizada para subir o site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4 # Versão atualizada
