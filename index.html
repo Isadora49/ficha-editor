@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor 2026 - Versão Final Estável</title>
+    <title>PDF Editor 2026 - Versão Estável</title>
     
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -11,67 +11,30 @@
 
     <style>
         :root { --brand: #2563eb; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; padding: 40px; text-align: center; }
+        body { font-family: system-ui, sans-serif; background: #f1f5f9; padding: 20px; text-align: center; }
         .container { max-width: 950px; margin: auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); }
-        .controls { display: flex; gap: 15px; justify-content: center; margin-bottom: 2rem; }
-        
-        #editor-wrapper {
-            position: relative;
-            display: inline-block;
-            background: #cbd5e1;
-            border: 2px solid #94a3b8;
-            line-height: 0;
-            user-select: none;
-        }
-
+        .controls { display: flex; gap: 15px; justify-content: center; margin-bottom: 2rem; flex-wrap: wrap; }
+        #editor-wrapper { position: relative; display: inline-block; background: #cbd5e1; border: 2px solid #94a3b8; line-height: 0; }
         #pdf-canvas { max-width: 100%; height: auto; display: block; }
-
         #image-field {
-            position: absolute;
-            width: 150px;
-            height: 150px;
-            background: rgba(37, 99, 235, 0.3);
-            border: 2px solid var(--brand);
-            z-index: 100;
-            touch-action: none;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            cursor: move;
-            box-sizing: border-box;
-            top: 0;
-            left: 0;
+            position: absolute; width: 150px; height: 150px; background: rgba(37, 99, 235, 0.3);
+            border: 2px solid var(--brand); z-index: 100; touch-action: none; display: none;
+            align-items: center; justify-content: center; cursor: move; box-sizing: border-box; top: 0; left: 0;
         }
-
-        #image-field b { color: #1e3a8a; font-size: 12px; pointer-events: none; text-transform: uppercase; }
-
-        button { 
-            padding: 12px 24px; 
-            background: var(--brand); 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            font-weight: 600; 
-            cursor: pointer;
-        }
+        button { padding: 12px 24px; background: var(--brand); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
         button:disabled { background: #94a3b8; cursor: not-allowed; }
     </style>
 </head>
 <body>
-
     <div class="container">
-        <h2>Editor de Campo PDF Profissional</h2>
-        
+        <h2>Editor de PDF 2026</h2>
         <div class="controls">
             <input type="file" id="pdfInput" accept="application/pdf">
             <button id="downloadBtn" disabled>Gerar PDF Final</button>
         </div>
-
         <div id="editor-wrapper">
             <canvas id="pdf-canvas"></canvas>
-            <div id="image-field">
-                <b>Área da Foto</b>
-            </div>
+            <div id="image-field"><b>ÁREA DA FOTO</b></div>
         </div>
     </div>
 
@@ -79,64 +42,51 @@
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        const pdfInput = document.getElementById('pdfInput');
         const canvas = document.getElementById('pdf-canvas');
         const imageField = document.getElementById('image-field');
         const downloadBtn = document.getElementById('downloadBtn');
         
         let globalPdfBytes = null;
-        
-        // Coordenadas internas separadas para evitar NaN do DOM
-        let internalState = { x: 0, y: 0, w: 150, h: 150 };
+        let state = { x: 0, y: 0, w: 150, h: 150 };
 
-        pdfInput.addEventListener('change', async (e) => {
+        document.getElementById('pdfInput').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
-            const buffer = await file.arrayBuffer();
-            globalPdfBytes = buffer;
-
-            const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(buffer.slice(0))});
+            globalPdfBytes = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(globalPdfBytes.slice(0))});
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
-            
             const viewport = page.getViewport({scale: 1.5});
             const context = canvas.getContext('2d');
             canvas.width = viewport.width;
             canvas.height = viewport.height;
-
             await page.render({canvasContext: context, viewport: viewport}).promise;
             
             imageField.style.display = 'flex';
-            imageField.style.width = '150px';
-            imageField.style.height = '150px';
             imageField.style.transform = 'translate(0px, 0px)';
-            
-            internalState = { x: 0, y: 0, w: 150, h: 150 };
+            state = { x: 0, y: 0, w: 150, h: 150 };
             downloadBtn.disabled = false;
         });
 
         interact('#image-field').draggable({
             listeners: {
                 move(event) {
-                    internalState.x += event.dx;
-                    internalState.y += event.dy;
-                    event.target.style.transform = `translate(${internalState.x}px, ${internalState.y}px)`;
+                    state.x += event.dx;
+                    state.y += event.dy;
+                    event.target.style.transform = `translate(${state.x}px, ${state.y}px)`;
                 }
             }
         }).resizable({
             edges: { left: true, right: true, bottom: true, top: true },
             listeners: {
                 move(event) {
-                    internalState.w = event.rect.width;
-                    internalState.h = event.rect.height;
-                    internalState.x += event.deltaRect.left;
-                    internalState.y += event.deltaRect.top;
-
+                    state.w = event.rect.width;
+                    state.h = event.rect.height;
+                    state.x += event.deltaRect.left;
+                    state.y += event.deltaRect.top;
                     Object.assign(event.target.style, {
-                        width: `${internalState.w}px`,
-                        height: `${internalState.h}px`,
-                        transform: `translate(${internalState.x}px, ${internalState.y}px)`
+                        width: `${state.w}px`, height: `${state.h}px`,
+                        transform: `translate(${state.x}px, ${state.y}px)`
                     });
                 }
             }
@@ -144,36 +94,30 @@
 
         downloadBtn.addEventListener('click', async () => {
             if (!globalPdfBytes) return;
-
             try {
                 const { PDFDocument, rgb } = PDFLib;
                 const pdfDoc = await PDFDocument.load(globalPdfBytes.slice(0));
                 const page = pdfDoc.getPages()[0];
                 const { width: pdfW, height: pdfH } = page.getSize();
 
-                const scaleX = pdfW / (canvas.width || 1);
-                const scaleY = pdfH / (canvas.height || 1);
+                // PROTEÇÃO CONTRA NaN: Forçamos valores numéricos e evitamos divisão por zero
+                const cW = canvas.width || 1;
+                const cH = canvas.height || 1;
+                const scaleX = pdfW / cW;
+                const scaleY = pdfH / cH;
 
-                // Função de limpeza forçada para garantir números válidos
-                const safeNum = (val) => {
-                    const n = parseFloat(val);
-                    return isNaN(n) ? 0 : n;
-                };
-
-                const fX = safeNum(Math.round(internalState.x * scaleX));
-                const fW = safeNum(Math.round(internalState.w * scaleX));
-                const fH = safeNum(Math.round(internalState.h * scaleY));
-                const fY = safeNum(Math.round(pdfH - (internalState.y * scaleY) - fH));
+                const fX = Number((state.x * scaleX).toFixed(2)) || 0;
+                const fW = Number((state.w * scaleX).toFixed(2)) || 50;
+                const fH = Number((state.h * scaleY).toFixed(2)) || 50;
+                const fY = Number((pdfH - (state.y * scaleY) - fH).toFixed(2)) || 0;
 
                 const form = pdfDoc.getForm();
-                const fieldName = `Field_${Date.now()}`;
+                // Força o nome do campo a ser STRING para evitar o erro "text must be string"
+                const fieldName = String("Foto_" + Date.now());
                 const button = form.createButton(fieldName);
                 
                 button.addToPage(page, {
-                    x: fX,
-                    y: fY,
-                    width: Math.max(1, fW),
-                    height: Math.max(1, fH),
+                    x: fX, y: fY, width: fW, height: fH,
                     backgroundColor: rgb(0.9, 0.9, 0.9)
                 });
 
@@ -181,12 +125,10 @@
                 const blob = new Blob([pdfData], { type: 'application/pdf' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = "projeto_editavel.pdf";
+                link.download = "projeto_final.pdf";
                 link.click();
-
             } catch (err) {
-                console.error(err);
-                alert("Erro ao processar: " + err.message);
+                alert("Erro ao gerar: " + err.message);
             }
         });
     </script>
