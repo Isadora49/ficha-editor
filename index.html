@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Editor 2026 - Versão Final Certificada</title>
+    <title>PDF Editor 2026 - Versão Final Estável</title>
     
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -86,12 +86,8 @@
         
         let globalPdfBytes = null;
         
-        let state = {
-            x: 0.0,
-            y: 0.0,
-            w: 150.0,
-            h: 150.0
-        };
+        // Coordenadas internas separadas para evitar NaN do DOM
+        let internalState = { x: 0, y: 0, w: 150, h: 150 };
 
         pdfInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -100,8 +96,6 @@
             const buffer = await file.arrayBuffer();
             globalPdfBytes = buffer;
 
-            // CORREÇÃO: Usamos buffer.slice(0) para enviar uma CÓPIA ao Web Worker do PDF.js
-            // Isso impede que o buffer original sofra o "detach" (seja esvaziado).
             const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(buffer.slice(0))});
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
@@ -118,31 +112,31 @@
             imageField.style.height = '150px';
             imageField.style.transform = 'translate(0px, 0px)';
             
-            state = { x: 0.0, y: 0.0, w: 150.0, h: 150.0 };
+            internalState = { x: 0, y: 0, w: 150, h: 150 };
             downloadBtn.disabled = false;
         });
 
         interact('#image-field').draggable({
             listeners: {
                 move(event) {
-                    state.x = (parseFloat(state.x) || 0) + event.dx;
-                    state.y = (parseFloat(state.y) || 0) + event.dy;
-                    event.target.style.transform = `translate(${state.x}px, ${state.y}px)`;
+                    internalState.x += event.dx;
+                    internalState.y += event.dy;
+                    event.target.style.transform = `translate(${internalState.x}px, ${internalState.y}px)`;
                 }
             }
         }).resizable({
             edges: { left: true, right: true, bottom: true, top: true },
             listeners: {
                 move(event) {
-                    state.w = parseFloat(event.rect.width) || 150;
-                    state.h = parseFloat(event.rect.height) || 150;
-                    state.x = (parseFloat(state.x) || 0) + event.deltaRect.left;
-                    state.y = (parseFloat(state.y) || 0) + event.deltaRect.top;
+                    internalState.w = event.rect.width;
+                    internalState.h = event.rect.height;
+                    internalState.x += event.deltaRect.left;
+                    internalState.y += event.deltaRect.top;
 
                     Object.assign(event.target.style, {
-                        width: `${state.w}px`,
-                        height: `${state.h}px`,
-                        transform: `translate(${state.x}px, ${state.y}px)`
+                        width: `${internalState.w}px`,
+                        height: `${internalState.h}px`,
+                        transform: `translate(${internalState.x}px, ${internalState.y}px)`
                     });
                 }
             }
@@ -153,32 +147,33 @@
 
             try {
                 const { PDFDocument, rgb } = PDFLib;
-                
-                // CORREÇÃO: Usamos slice(0) novamente aqui. 
-                // Assim, garantimos que se o usuário clicar em baixar 2 vezes seguidas, não vai dar erro na segunda vez.
                 const pdfDoc = await PDFDocument.load(globalPdfBytes.slice(0));
-                
                 const page = pdfDoc.getPages()[0];
                 const { width: pdfW, height: pdfH } = page.getSize();
 
                 const scaleX = pdfW / (canvas.width || 1);
                 const scaleY = pdfH / (canvas.height || 1);
 
-                const finalX = Number(Math.round(state.x * scaleX));
-                const finalW = Number(Math.round(state.w * scaleX));
-                const finalH = Number(Math.round(state.h * scaleY));
-                const finalY = Number(Math.round(pdfH - (state.y * scaleY) - finalH));
+                // Função de limpeza forçada para garantir números válidos
+                const safeNum = (val) => {
+                    const n = parseFloat(val);
+                    return isNaN(n) ? 0 : n;
+                };
+
+                const fX = safeNum(Math.round(internalState.x * scaleX));
+                const fW = safeNum(Math.round(internalState.w * scaleX));
+                const fH = safeNum(Math.round(internalState.h * scaleY));
+                const fY = safeNum(Math.round(pdfH - (internalState.y * scaleY) - fH));
 
                 const form = pdfDoc.getForm();
-                const fieldName = `Field_${Math.floor(Math.random() * 1000000)}`;
-
+                const fieldName = `Field_${Date.now()}`;
                 const button = form.createButton(fieldName);
                 
                 button.addToPage(page, {
-                    x: finalX,
-                    y: finalY,
-                    width: Math.max(5, finalW),
-                    height: Math.max(5, finalH),
+                    x: fX,
+                    y: fY,
+                    width: Math.max(1, fW),
+                    height: Math.max(1, fH),
                     backgroundColor: rgb(0.9, 0.9, 0.9)
                 });
 
@@ -186,12 +181,12 @@
                 const blob = new Blob([pdfData], { type: 'application/pdf' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = "documento_editado.pdf";
+                link.download = "projeto_editavel.pdf";
                 link.click();
 
             } catch (err) {
                 console.error(err);
-                alert("Erro: " + err.message);
+                alert("Erro ao processar: " + err.message);
             }
         });
     </script>
